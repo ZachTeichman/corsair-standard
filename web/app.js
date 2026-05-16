@@ -12,8 +12,6 @@ const resultCopy = document.querySelector("#result-copy");
 const violationList = document.querySelector("#violation-list");
 const violationPill = document.querySelector("#violation-pill");
 const resumePage = document.querySelector("#resume-page");
-const previewEmpty = document.querySelector("#preview-empty");
-const debugToggle = document.querySelector("#debug-toggle");
 const modeTabs = document.querySelectorAll(".mode-tab");
 const views = document.querySelectorAll(".view");
 const batchInput = document.querySelector("#batch-files");
@@ -31,10 +29,11 @@ const dashboardEls = {
   reviewFilter: document.querySelector("#filter-review"),
 };
 
-let auditHistory = [];
+const HISTORY_STORAGE_KEY = "corsair.auditHistory.v1";
+let auditHistory = loadAuditHistory();
 let activeFilter = "all";
 let currentPayload = null;
-let officeStatus = { configured: false, connected: false };
+let pendingViewerWindow = null;
 
 const countEls = {
   critical: document.querySelector("#critical-count"),
@@ -199,13 +198,61 @@ async function analyzeFile(file) {
   return payload;
 }
 
-function rememberAudit(payload) {
-  const filename = payload.source.filename;
+function loadAuditHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAuditHistory() {
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(auditHistory.slice(0, 100)));
+}
+
+function auditId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function upsertAudit(item) {
+  const filename = item.payload.source.filename;
   auditHistory = [
-    { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, payload },
-    ...auditHistory.filter((item) => item.payload.source.filename !== filename),
+    item,
+    ...auditHistory.filter((candidate) => candidate.payload.source.filename !== filename),
   ];
+}
+
+function errorAudit(filename, error) {
+  return {
+    id: auditId(),
+    error: error?.message || "Audit failed.",
+    payload: {
+      source: { filename },
+      result: { score: null, total_penalty: 0, violations: [] },
+      preview: [],
+    },
+  };
+}
+
+function rememberAudit(payload) {
+  upsertAudit({ id: auditId(), payload });
+  saveAuditHistory();
   renderReviewerDashboard();
+}
+
+async function mapWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  });
+  await Promise.all(runners);
+  return results;
 }
 
 function renderViolations(violations) {
@@ -264,6 +311,7 @@ function evidenceItems(violation) {
     return evidence.paragraphs.map((paragraph) => ({
       label: `P${paragraph.index}`,
       text: cleanEvidenceText(paragraph.text),
+      rawText: displayEvidenceText(paragraph.text),
       paragraphIndex: paragraph.index,
     }));
   }
@@ -271,6 +319,7 @@ function evidenceItems(violation) {
     return [{
       label: `P${evidence.paragraph.index}`,
       text: cleanEvidenceText(evidence.paragraph.text),
+      rawText: displayEvidenceText(evidence.paragraph.text),
       paragraphIndex: evidence.paragraph.index,
     }];
   }
@@ -303,6 +352,13 @@ function cleanEvidenceText(text) {
     .trim();
 }
 
+function displayEvidenceText(text) {
+  return String(text || "")
+    .replaceAll("\\t", "\t")
+    .replace(/\t/g, " [tab] ")
+    .replace(/\s+$/g, "");
+}
+
 function previewText(text) {
   return String(text || "")
     .replace(/\t/g, "    ")
@@ -310,247 +366,129 @@ function previewText(text) {
 }
 
 function renderDocumentPreview(payload, violations) {
-  const originalDocx = payload.document_links?.original_docx;
-  const uploadId = payload.document_links?.upload_id;
-  const officePreview = payload.document_links?.office_preview;
+  const officeViewerEmbed = payload.document_links?.office_viewer_embed;
+  const sections = payload.result?.document_summary?.detected_sections || [];
+  const outlineRows = buildStructureOutline(sections, violations);
+
   resumePage.innerHTML = `
-    <div class="docx-native-card">
-      <span class="section-kicker">Word-native document</span>
-      <h3>${officePreview?.get_url ? "Office preview ready" : "Preview requires Microsoft 365"}</h3>
-      <p>
-        DOCX rendering is not simulated in the browser. Use Microsoft Word or Office Online
-        for the high-fidelity layout view.
-      </p>
-      <div class="docx-actions">
-        ${originalDocx ? `<a class="docx-button" href="${escapeHtml(originalDocx)}">Download DOCX</a>` : ""}
-        ${officePreview?.get_url ? `<a class="docx-button secondary" href="${escapeHtml(officePreview.get_url)}" target="_blank" rel="noreferrer">Open Office preview</a>` : ""}
-        ${!officePreview?.get_url && officeStatus.connected && uploadId ? `<button class="docx-button secondary" type="button" id="office-preview-button">Create Office preview</button>` : ""}
-        ${!officeStatus.connected ? `<button class="docx-button secondary" type="button" id="office-connect-button">${officeStatus.configured ? "Connect Microsoft 365" : "Microsoft 365 not configured"}</button>` : ""}
-        <span>${officeStatus.connected ? "Connected to Microsoft 365." : "Office preview uploads the DOCX to the signed-in user’s OneDrive."}</span>
+    <div class="structure-outline">
+      <div class="structure-actions">
+        <div>
+          <span class="section-kicker">Document structure</span>
+          <h3>Issue map</h3>
+          <p>Logical section outline from DOCX XML. Open the Word preview for exact layout.</p>
+        </div>
+        ${officeViewerEmbed ? `
+          <a class="docx-button" href="${escapeHtml(officeViewerEmbed)}" target="_blank" rel="noreferrer">
+            Open Microsoft preview
+          </a>
+        ` : ""}
+      </div>
+      ${sections.length ? `
+        <ol class="section-outline">
+          ${sections.map((section) => sectionOutlineItem(section, outlineRows)).join("")}
+        </ol>
+      ` : `
+        <div class="empty-state">No canonical Corsair sections detected yet.</div>
+      `}
+      ${outlineRows.unsectioned.length ? `
+        <div class="unsectioned-issues">
+          <h4>Header and document-level issues</h4>
+          ${outlineRows.unsectioned.map(structureIssueRow).join("")}
+        </div>
+      ` : ""}
+      <div class="word-preview-note">
+        <span class="section-kicker">Microsoft Word preview</span>
+        <p>The original DOCX is not modified. The browser outline is an audit map, not a simulated Word render.</p>
       </div>
     </div>
   `;
-}
 
-async function refreshOfficeStatus() {
-  try {
-    const response = await fetch("/api/office/status");
-    officeStatus = await response.json();
-  } catch {
-    officeStatus = { configured: false, connected: false };
-  }
-}
-
-async function connectOffice() {
-  const response = await fetch("/api/office/connect");
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.detail || "Microsoft 365 is not configured.");
-  }
-  window.open(payload.auth_url, "_blank", "noopener,noreferrer");
-}
-
-async function createOfficePreview() {
-  const uploadId = currentPayload?.document_links?.upload_id;
-  if (!uploadId) return;
-  statusLine.textContent = "Requesting Microsoft Office preview...";
-  const response = await fetch(`/api/uploads/${uploadId}/office-preview`, { method: "POST" });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.detail || "Microsoft Office preview failed.");
-  }
-  currentPayload.document_links.office_preview = payload.preview;
-  currentPayload.document_links.office_online = payload.preview?.get_url || null;
-  renderDocumentPreview(currentPayload, currentPayload.result?.violations || []);
-  statusLine.textContent = "Microsoft Office preview ready.";
-}
-
-function renderHighlightMarkup(mark) {
-  const y = Number(mark.y) + Number(mark.height) - 0.4;
-  return `
-    <button
-      class="render-highlight ${escapeHtml(mark.severity)}"
-      type="button"
-      data-issue-line="${mark.issue_index}"
-      style="left:${mark.x}%; top:${y}%; width:${mark.width}%; height:${Math.max(0.8, mark.height * 0.22)}%;"
-      aria-label="Formatting issue"
-    ></button>
-  `;
-}
-
-function renderIssueOverlay(layout, pageNumber = 1) {
-  const blockById = new Map((layout.blocks || []).map((block) => [block.id, block]));
-  return (layout.issues || []).slice(0, 7)
-    .filter((issue) => (issue.page || 1) === pageNumber)
-    .map((issue) => {
-      const issueIndex = Number(String(issue.id).replace("issue-", ""));
-      const blocks = issue.affectedBlocks
-        .map((id) => blockById.get(id))
-        .filter(Boolean)
-        .filter((block) => block.page === pageNumber)
-        .slice(0, 12);
-      if (!blocks.length) return "";
-      const representative = pickRepresentativeBlock(blocks, issue.geometry);
-      const target = userIssueGeometry(issue, blocks, representative);
-      return `${renderIssueTarget(issue, issueIndex, target)}${renderIssuePopover(issue, issueIndex, representative)}`;
-    })
-    .join("");
-}
-
-function renderDebugOverlay(layout, pageNumber = 1) {
-  return `
-    <div class="debug-layer">
-      ${(layout.blocks || []).filter((block) => block.page === pageNumber).map((block) => `
-        <span
-          class="debug-box"
-          style="left:${block.x}%; top:${block.y}%; width:${block.width}%; height:${block.height}%;"
-          title="${escapeHtml(block.id)}"
-        ></span>
-      `).join("")}
-    </div>
-  `;
-}
-
-function unionClientGeometry(blocks) {
-  const x0 = Math.min(...blocks.map((block) => block.x));
-  const y0 = Math.min(...blocks.map((block) => block.y));
-  const x1 = Math.max(...blocks.map((block) => block.x + block.width));
-  const y1 = Math.max(...blocks.map((block) => block.y + block.height));
-  return {
-    x: x0,
-    y: y0,
-    width: x1 - x0,
-    height: y1 - y0,
-  };
-}
-
-function pickRepresentativeBlock(blocks, fallback) {
-  if (!blocks.length) return fallback || {};
-  return blocks
-    .slice()
-    .sort((a, b) => (a.y - b.y) || (a.x - b.x))[0];
-}
-
-function userIssueGeometry(issue, blocks, representative) {
-  if (!blocks.length) return issue.geometry || representative || {};
-  if (["bullet_format", "indentation"].includes(issue.category)) {
-    return clampGeometry(unionClientGeometry(blocks), 18);
-  }
-  if (issue.category === "spacing" && issue.geometry?.width && issue.geometry?.height) {
-    return issue.geometry;
-  }
-  return representative;
-}
-
-function clampGeometry(geometry, maxHeight) {
-  return {
-    ...geometry,
-    height: Math.min(geometry.height, maxHeight),
-  };
-}
-
-function renderIssueTarget(issue, issueIndex, geometry) {
-  if (!geometry.width || !geometry.height) return "";
-  return `
-    <button
-      class="issue-target ${escapeHtml(issue.severity)}"
-      type="button"
-      data-issue-line="${issueIndex}"
-      style="left:${geometry.x}%; top:${geometry.y}%; width:${geometry.width}%; height:${geometry.height}%;"
-      aria-label="${escapeHtml(issue.category)} issue region"
-      title="${escapeHtml(issue.category)}"
-    ></button>
-  `;
-}
-
-function renderIssuePopover(issue, issueIndex, geometry) {
-  if (!geometry.width || !geometry.height) return "";
-  const grouped = geometry.width > 55 || geometry.height > 18;
-  const x = grouped
-    ? 63
-    : Math.min(62, Math.max(4, geometry.x + geometry.width + 1.2));
-  const y = grouped
-    ? Math.min(74, Math.max(5, geometry.y + 1))
-    : Math.min(78, Math.max(3, geometry.y + geometry.height + 0.8));
-  return `
-    <aside
-      class="issue-popover ${escapeHtml(issue.severity)}${grouped ? " is-side-card" : ""}"
-      data-issue-line="${issueIndex}"
-      style="left:${x}%; top:${y}%;"
-    >
-      <span>${escapeHtml(shortIssuePill(issue))}</span>
-      <strong>${escapeHtml(issueTitle(issue))}</strong>
-      <p>${escapeHtml(issue.explanation || issue.message)}</p>
-    </aside>
-  `;
-}
-
-function issueTitle(issue) {
-  const ruleId = issue.sourceRuleId || "";
-  return ruleLabels[ruleId] || issue.message || "Formatting issue";
-}
-
-function shortIssuePill(issue) {
-  const ruleId = issue.sourceRuleId || "";
-  if (ruleId.includes("tab_space") || ruleId.includes("excessive_alignment") || ruleId.includes("spacing_hack")) return "Structure";
-  if (ruleId.includes("manual_alignment") || ruleId.includes("tabs_require")) return "Spacing";
-  if (ruleId.includes("date")) return "Date align";
-  if (ruleId.includes("name_centered")) return "Align";
-  if (ruleId.includes("dual_address") || ruleId.includes("contact")) return "Header";
-  if (ruleId.includes("bullet.indent")) return "Indent";
-  if (ruleId.includes("nested")) return "Bullet";
-  if (ruleId.includes("length")) return "Density";
-  return {
-    manual_formatting: "Spacing",
-    date_alignment: "Date",
-    bullet_format: "Bullet",
-    indentation: "Indent",
-    alignment: "Align",
-    consistency: "Style",
-    spacing: "Space",
-    font: "Font",
-    section_order: "Order",
-    readability: "Density",
-  }[issue.category] || "Issue";
-}
-
-function buildIssueMap(violations) {
-  const map = new Map();
-  violations.forEach((violation, issueIndex) => {
-    evidenceItems(violation).forEach((item) => {
-      if (!Number.isFinite(item.paragraphIndex)) return;
-      const current = map.get(item.paragraphIndex) || [];
-      current.push({
-        issueIndex,
-        severity: violation.severity,
-        label: ruleLabels[violation.rule_id] || violation.rule_id,
+  resumePage.querySelectorAll(".structure-issue").forEach((button) => {
+    button.addEventListener("mouseenter", () => setActiveIssue(button.dataset.issueLine));
+    button.addEventListener("mouseleave", clearActiveIssue);
+    button.addEventListener("focusin", () => setActiveIssue(button.dataset.issueLine));
+    button.addEventListener("focusout", clearActiveIssue);
+    button.addEventListener("click", () => {
+      setActiveIssue(button.dataset.issueLine);
+      document.querySelector(`.violation[data-issue-index="${button.dataset.issueLine}"]`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
       });
-      map.set(item.paragraphIndex, current);
     });
   });
-  return map;
 }
 
-function previewParagraphMarkup(paragraph, issues) {
-  const primaryIssue = highestPriorityIssue(issues);
-  const classes = ["preview-line", paragraph.kind];
-  const dataAttrs = [];
-  if (primaryIssue) {
-    classes.push("has-issue", primaryIssue.severity);
-    dataAttrs.push(`data-issue-line="${primaryIssue.issueIndex}"`);
-  }
-  const issueBadges = issues.length
-    ? `<span class="line-badges">${issues.slice(0, 2).map((issue) => `
-        <span class="line-badge ${escapeHtml(issue.severity)}">${escapeHtml(shortIssueLabel(issue.label))}</span>
-      `).join("")}${issues.length > 2 ? `<span class="line-badge more">+${issues.length - 2}</span>` : ""}</span>`
-    : "";
-  const text = previewText(paragraph.text);
+function buildStructureOutline(sections, violations) {
+  const sortedSections = [...sections].sort((a, b) => a.paragraph_index - b.paragraph_index);
+  const rows = { unsectioned: [] };
+  sortedSections.forEach((section) => {
+    rows[section.name] = [];
+  });
 
+  violations.forEach((violation, issueIndex) => {
+    evidenceItems(violation).forEach((item) => {
+      const row = {
+        issueIndex,
+        severity: violation.severity,
+        ruleId: violation.rule_id,
+        title: ruleLabels[violation.rule_id] || violation.rule_id,
+        message: violation.message,
+        text: item.text,
+        rawText: item.rawText || item.text,
+        paragraphIndex: item.paragraphIndex,
+      };
+      const section = sectionForParagraph(sortedSections, item.paragraphIndex);
+      if (section) rows[section.name].push(row);
+      else rows.unsectioned.push(row);
+    });
+  });
+
+  Object.keys(rows).forEach((key) => {
+    rows[key] = dedupeStructureRows(rows[key]);
+  });
+  return rows;
+}
+
+function sectionForParagraph(sections, paragraphIndex) {
+  if (!Number.isFinite(paragraphIndex)) return null;
+  return sections
+    .filter((section) => section.paragraph_index <= paragraphIndex)
+    .sort((a, b) => b.paragraph_index - a.paragraph_index)[0] || null;
+}
+
+function dedupeStructureRows(rows) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = `${row.paragraphIndex}:${row.ruleId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function sectionOutlineItem(section, outlineRows) {
+  const rows = outlineRows[section.name] || [];
+  const status = rows.length ? `${rows.length} issue${rows.length === 1 ? "" : "s"}` : "clear";
   return `
-    <p class="${classes.map(escapeHtml).join(" ")}" ${dataAttrs.join(" ")}>
-      <span class="preview-text">${renderMarkedPreviewText(text, issues)}</span>
-      ${issueBadges}
-    </p>
+    <li class="section-outline-item ${rows.length ? "has-issues" : "is-clear"}">
+      <div class="section-outline-head">
+        <span>${escapeHtml(section.name)}</span>
+        <small>${escapeHtml(status)}</small>
+      </div>
+      ${rows.length ? `<div class="structure-issues">${rows.map(structureIssueRow).join("")}</div>` : ""}
+    </li>
+  `;
+}
+
+function structureIssueRow(row) {
+  return `
+    <button class="structure-issue ${escapeHtml(row.severity)}" type="button" data-issue-line="${row.issueIndex}">
+      <span class="severity ${escapeHtml(row.severity)}">${escapeHtml(row.severity)}</span>
+      <strong>${escapeHtml(row.title)}</strong>
+      <small>${Number.isFinite(row.paragraphIndex) ? `P${row.paragraphIndex}` : "Document"}</small>
+      ${row.rawText ? `<p>${renderEvidenceMarkup(row.rawText, row.title)}</p>` : ""}
+    </button>
   `;
 }
 
@@ -566,15 +504,12 @@ function shortIssueLabel(label) {
     .replace("Bullet length risk", "Line length");
 }
 
-function renderMarkedPreviewText(text, issues) {
+function renderEvidenceMarkup(text, label = "") {
   const escaped = escapeHtml(text || "");
-  if (!issues.length) return escaped;
+  const hasTabIssue = /tab|date|contact/i.test(label);
+  const hasSpaceIssue = /space|leading/i.test(label);
 
-  const labels = issues.map((issue) => issue.label);
-  const hasTabIssue = labels.some((label) => /tab|date|contact/i.test(label));
-  const hasSpaceIssue = labels.some((label) => /space|leading/i.test(label));
-
-  if (hasTabIssue && /\s{4,}/.test(text)) {
+  if (hasTabIssue && / {4,}/.test(text)) {
     return escaped.replace(/ {4,}/g, (match) => `<span class="format-mark tab-gap">${"&nbsp;".repeat(Math.min(match.length, 8))}</span>`);
   }
 
@@ -582,15 +517,7 @@ function renderMarkedPreviewText(text, issues) {
     return escaped.replace(/^ +/, (match) => `<span class="format-mark leading-gap">${"&nbsp;".repeat(match.length)}</span>`);
   }
 
-  if (text.length > 90) {
-    const midpoint = Math.floor(text.length * 0.55);
-    const before = escapeHtml(text.slice(0, midpoint));
-    const marked = escapeHtml(text.slice(midpoint, Math.min(text.length, midpoint + 36)));
-    const after = escapeHtml(text.slice(Math.min(text.length, midpoint + 36)));
-    return `${before}<span class="format-mark text-span">${marked}</span>${after}`;
-  }
-
-  return `<span class="format-mark text-span">${escaped}</span>`;
+  return escaped;
 }
 
 function highestPriorityIssue(issues) {
@@ -599,14 +526,14 @@ function highestPriorityIssue(issues) {
 }
 
 function setActiveIssue(issueIndex) {
-  document.querySelectorAll(".preview-line, .render-highlight, .issue-popover, .issue-target, .violation").forEach((node) => {
+  document.querySelectorAll(".structure-issue, .violation").forEach((node) => {
     node.classList.toggle("is-active", node.dataset.issueIndex === String(issueIndex));
     node.classList.toggle("is-active", node.dataset.issueLine === String(issueIndex));
   });
 }
 
 function clearActiveIssue() {
-  document.querySelectorAll(".preview-line, .render-highlight, .issue-popover, .issue-target, .violation").forEach((node) => {
+  document.querySelectorAll(".structure-issue, .violation").forEach((node) => {
     node.classList.remove("is-active");
   });
 }
@@ -645,25 +572,36 @@ dropzone.addEventListener("drop", (event) => {
   setSelectedFile(file);
 });
 
-debugToggle.addEventListener("change", () => {
-  resumePage.classList.toggle("show-debug", debugToggle.checked);
-});
-
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const file = fileInput.files[0];
   if (!file) return;
+
+  pendingViewerWindow = window.open("about:blank", "_blank");
+  if (pendingViewerWindow) {
+    pendingViewerWindow.document.write(
+      "<p style='font-family: system-ui, sans-serif; padding: 24px;'>Preparing Microsoft Word preview...</p>"
+    );
+  }
 
   setLoading(true);
   try {
     const payload = await analyzeFile(file);
     rememberAudit(payload);
     renderResult(payload);
+    const viewerUrl = payload.document_links?.office_viewer_embed;
+    if (pendingViewerWindow && viewerUrl) {
+      pendingViewerWindow.location.href = viewerUrl;
+    } else if (pendingViewerWindow) {
+      pendingViewerWindow.close();
+    }
   } catch (error) {
+    if (pendingViewerWindow) pendingViewerWindow.close();
     statusLine.textContent = error.message;
     resultTitle.textContent = "Audit failed";
     resultCopy.textContent = "The backend returned an error before completing the format check.";
   } finally {
+    pendingViewerWindow = null;
     setLoading(false);
   }
 });
@@ -682,25 +620,23 @@ batchInput.addEventListener("change", async () => {
   if (!files.length) return;
 
   setReviewerBusy(true, `Auditing ${files.length} file${files.length === 1 ? "" : "s"}...`);
-  for (const file of files) {
+  const results = await mapWithConcurrency(files, 4, async (file) => {
     try {
-      rememberAudit(await analyzeFile(file));
+      return { ok: true, file, payload: await analyzeFile(file) };
     } catch (error) {
-      auditHistory = [
-        {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          error: error.message,
-          payload: {
-            source: { filename: file.name },
-            result: { score: 0, total_penalty: 0, violations: [] },
-            preview: [],
-          },
-        },
-        ...auditHistory,
-      ];
-      renderReviewerDashboard();
+      return { ok: false, file, error };
+    }
+  });
+
+  for (const result of results) {
+    if (result.ok) {
+      upsertAudit({ id: auditId(), payload: result.payload });
+    } else {
+      upsertAudit(errorAudit(result.file.name, result.error));
     }
   }
+  saveAuditHistory();
+  renderReviewerDashboard();
   setReviewerBusy(false);
   batchInput.value = "";
 });
@@ -720,14 +656,15 @@ exportCsvButton.addEventListener("click", () => {
       const payload = item.payload;
       const violations = payload.result.violations || [];
       const counts = severityCounts(violations);
+      const status = applicantStatus(payload.result.score, item.error);
       return [
         payload.source.filename,
-        payload.result.score,
+        item.error ? "" : payload.result.score,
         violations.length,
         counts.critical,
         counts.major,
         counts.minor,
-        applicantStatus(payload.result.score).label,
+        status.label,
       ];
     }),
   ];
@@ -740,32 +677,6 @@ exportCsvButton.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-resumePage.addEventListener("click", async (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
-  try {
-    if (target.id === "office-connect-button") {
-      await connectOffice();
-      statusLine.textContent = "Finish Microsoft sign-in, then return here and run Office preview.";
-    }
-    if (target.id === "office-preview-button") {
-      target.setAttribute("disabled", "true");
-      target.textContent = "Creating preview...";
-      await createOfficePreview();
-    }
-  } catch (error) {
-    statusLine.textContent = error.message;
-    if (currentPayload) renderDocumentPreview(currentPayload, currentPayload.result?.violations || []);
-  }
-});
-
-window.addEventListener("focus", async () => {
-  await refreshOfficeStatus();
-  if (currentPayload) renderDocumentPreview(currentPayload, currentPayload.result?.violations || []);
-});
-
-refreshOfficeStatus();
-
 function setReviewerBusy(isBusy, message = "") {
   const label = document.querySelector(".secondary-upload");
   label.classList.toggle("is-busy", isBusy);
@@ -774,16 +685,19 @@ function setReviewerBusy(isBusy, message = "") {
 
 function renderReviewerDashboard() {
   const total = auditHistory.length;
-  const scored = auditHistory.map((item) => item.payload.result.score);
+  const scored = auditHistory
+    .filter((item) => !item.error && Number.isFinite(item.payload.result.score))
+    .map((item) => item.payload.result.score);
   const average = scored.length ? Math.round(scored.reduce((sum, score) => sum + score, 0) / scored.length) : null;
-  const statuses = auditHistory.map((item) => applicantStatus(item.payload.result.score).key);
+  const statuses = auditHistory.map((item) => applicantStatus(item.payload.result.score, item.error).key);
+  const completedTotal = statuses.filter((status) => status !== "error").length;
   const pass = statuses.filter((status) => status === "pass").length;
   const fail = statuses.filter((status) => status === "fail").length;
   const review = statuses.filter((status) => status === "review").length;
 
   dashboardEls.total.textContent = total;
   dashboardEls.average.textContent = average ?? "--";
-  dashboardEls.passRate.textContent = total ? `${Math.round((pass / total) * 100)}%` : "--";
+  dashboardEls.passRate.textContent = completedTotal ? `${Math.round((pass / completedTotal) * 100)}%` : "--";
   dashboardEls.review.textContent = review;
   dashboardEls.all.textContent = `(${total})`;
   dashboardEls.pass.textContent = `(${pass})`;
@@ -793,7 +707,7 @@ function renderReviewerDashboard() {
 
   const filtered = auditHistory.filter((item) => {
     if (activeFilter === "all") return true;
-    return applicantStatus(item.payload.result.score).key === activeFilter;
+    return applicantStatus(item.payload.result.score, item.error).key === activeFilter;
   });
 
   applicantTable.innerHTML = `
@@ -809,7 +723,7 @@ function renderReviewerDashboard() {
   applicantTable.querySelectorAll(".applicant-row").forEach((row) => {
     row.addEventListener("click", () => {
       const item = auditHistory.find((candidate) => candidate.id === row.dataset.auditId);
-      if (!item) return;
+      if (!item || item.error) return;
       renderResult(item.payload);
       document.querySelector('[data-view="student-view"]').click();
       document.querySelector("#student-view").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -820,22 +734,23 @@ function renderReviewerDashboard() {
 function applicantRow(item) {
   const payload = item.payload;
   const result = payload.result;
-  const status = applicantStatus(result.score);
+  const status = applicantStatus(result.score, item.error);
   const violations = result.violations || [];
   return `
-    <button class="applicant-row" type="button" data-audit-id="${escapeHtml(item.id)}">
+    <button class="applicant-row ${item.error ? "is-error" : ""}" type="button" data-audit-id="${escapeHtml(item.id)}" ${item.error ? "disabled" : ""}>
       <span>
         <strong>${escapeHtml(filenameToName(payload.source.filename))}</strong>
-        <small>${escapeHtml(payload.source.filename)}</small>
+        <small>${escapeHtml(item.error || payload.source.filename)}</small>
       </span>
-      <span class="score-cell ${escapeHtml(status.key)}">${result.score}</span>
+      <span class="score-cell ${escapeHtml(status.key)}">${item.error ? "--" : result.score}</span>
       <span>${violations.length}</span>
       <span class="status-pill ${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>
     </button>
   `;
 }
 
-function applicantStatus(score) {
+function applicantStatus(score, error = null) {
+  if (error) return { key: "error", label: "Error" };
   if (score >= 90) return { key: "pass", label: "Pass" };
   if (score >= 75) return { key: "review", label: "Review" };
   return { key: "fail", label: "Fail" };
@@ -852,3 +767,5 @@ function filenameToName(filename) {
 function csvCell(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
+
+renderReviewerDashboard();

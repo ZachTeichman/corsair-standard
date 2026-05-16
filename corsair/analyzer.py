@@ -10,7 +10,7 @@ from .render_validation import get_render_validation_status, validate_rendered_p
 from .rubric import load_rubric
 
 
-SECTION_PATTERN = re.compile(r"^[A-Z][A-Z &/]+$")
+SECTION_PATTERN = re.compile(r"^[A-Z][A-Z &/]{3,}$")
 CITY_STATE_PATTERN = re.compile(r"\b[A-Z][A-Za-z .'-]+,?\s+[A-Z]{2}(?:\s+\d{5})?\b")
 DATE_PATTERN = re.compile(
     r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|"
@@ -46,11 +46,11 @@ def _make_violation(
     }
 
 
-def _detect_sections(document: DocumentModel) -> List[Dict[str, Any]]:
+def _detect_sections(document: DocumentModel, allowed_sections: set[str]) -> List[Dict[str, Any]]:
     sections: List[Dict[str, Any]] = []
     for para in document.paragraphs:
         text = para.text.strip()
-        if text and SECTION_PATTERN.fullmatch(text):
+        if text in allowed_sections and SECTION_PATTERN.fullmatch(text):
             sections.append({"name": text, "paragraph_index": para.index})
     return sections
 
@@ -79,8 +79,25 @@ def _unique_paragraphs(paragraphs: List[ParagraphModel]) -> List[ParagraphModel]
     return unique
 
 
-def _is_header_region(paragraph: ParagraphModel) -> bool:
-    return paragraph.index <= 2
+def _header_indices(document: DocumentModel, detected_sections: List[Dict[str, Any]]) -> set[int]:
+    first_section_index = min(
+        (section["paragraph_index"] for section in detected_sections),
+        default=min((paragraph.index for paragraph in document.paragraphs), default=0),
+    )
+    return {
+        paragraph.index
+        for paragraph in document.paragraphs
+        if paragraph.index < first_section_index and not paragraph.is_blank
+    }
+
+
+def _contact_paragraph(document: DocumentModel, header_indices: set[int]) -> Optional[ParagraphModel]:
+    header_paragraphs = [paragraph for paragraph in document.paragraphs if paragraph.index in header_indices]
+    with_email = [paragraph for paragraph in header_paragraphs if "@" in paragraph.text]
+    candidates = with_email or header_paragraphs
+    if not candidates:
+        return None
+    return max(candidates, key=lambda paragraph: (len(CITY_STATE_PATTERN.findall(paragraph.text)), paragraph.tab_count))
 
 
 def _looks_like_manual_layout(paragraph: ParagraphModel) -> bool:
@@ -95,8 +112,31 @@ def _looks_like_manual_layout(paragraph: ParagraphModel) -> bool:
     return False
 
 
-def _right_tab_positions(paragraph: ParagraphModel) -> set[str]:
-    return {tab.get("pos") for tab in paragraph.tab_stops if tab.get("val") == "right"}
+def _expected_right_tab_position(document: DocumentModel) -> Optional[int]:
+    page_width = document.page_size_twips.get("w")
+    left_margin = document.page_margins_twips.get("left")
+    right_margin = document.page_margins_twips.get("right")
+    if page_width is None or left_margin is None or right_margin is None:
+        return None
+    return page_width - left_margin - right_margin
+
+
+def _right_tab_positions(paragraph: ParagraphModel) -> set[int]:
+    positions = set()
+    for tab in paragraph.tab_stops:
+        pos = tab.get("pos")
+        if tab.get("val") == "right" and pos and pos.lstrip("-").isdigit():
+            positions.add(int(pos))
+    return positions
+
+
+def _has_expected_right_tab(paragraph: ParagraphModel, expected_position: Optional[int], tolerance: int = 72) -> bool:
+    positions = _right_tab_positions(paragraph)
+    if not positions:
+        return False
+    if expected_position is None:
+        return True
+    return any(abs(position - expected_position) <= tolerance for position in positions)
 
 
 def _has_center_tab(paragraph: ParagraphModel) -> bool:
@@ -134,10 +174,10 @@ def _expects_italic_role(paragraph: ParagraphModel) -> bool:
     return without_location.count(",") >= 1
 
 
-def _entry_paragraphs(document: DocumentModel, section_indices: set[int]) -> List[ParagraphModel]:
+def _entry_paragraphs(document: DocumentModel, section_indices: set[int], header_indices: set[int]) -> List[ParagraphModel]:
     entries: List[ParagraphModel] = []
     for para in document.paragraphs:
-        if para.index in section_indices or para.index <= 2 or para.numbering or para.is_blank:
+        if para.index in section_indices or para.index in header_indices or para.numbering or para.is_blank:
             continue
         if para.has_tabs and DATE_PATTERN.search(para.text):
             entries.append(para)
@@ -163,6 +203,12 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
     rubric = load_rubric()
     document = parse_docx(path)
     violations: List[Dict[str, Any]] = []
+    expected_sections = rubric["section_order"]["required_sections"]
+    allowed_sections = set(expected_sections) | set(rubric["section_order"].get("optional_sections", []))
+    detected_sections = _detect_sections(document, allowed_sections)
+    section_indices = {section["paragraph_index"] for section in detected_sections}
+    header_indices = _header_indices(document, detected_sections)
+    expected_right_tab_position = _expected_right_tab_position(document)
 
     for side, value in document.page_margins.items():
         if value is None:
@@ -240,18 +286,20 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
         if para.repeated_spaces and not para.is_blank:
             repeated_space_paragraphs.append(para)
 
-        if para.tab_space_padding or (
+        has_tab_space_hack = para.tab_space_padding or (
             para.raw_repeated_spaces
             and para.has_tabs
             and not para.tab_stops
             and not para.is_blank
-        ):
+        )
+        if has_tab_space_hack:
             tab_space_hack_paragraphs.append(para)
-
-        if para.tab_count >= 3 and not para.tab_stops and not para.is_blank:
+        elif para.tab_count >= 3 and not para.tab_stops and not para.is_blank:
             excessive_tab_paragraphs.append(para)
+        elif para.has_tabs and not para.tab_stops:
+            tab_without_stop.append(para)
 
-        if _is_header_region(para) and _looks_like_manual_layout(para):
+        if para.index in header_indices and _looks_like_manual_layout(para):
             header_spacing_hack_paragraphs.append(para)
 
         if DATE_PATTERN.search(para.text) and _looks_like_manual_layout(para):
@@ -270,14 +318,22 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
         if para.alignment == "both" and para.numbering:
             justified_numbered.append(para)
 
-        if para.has_tabs and not para.tab_stops:
-            tab_without_stop.append(para)
-
         right_tabs = [tab for tab in para.tab_stops if tab.get("val") == "right"]
         if right_tabs:
-            positions = {tab.get("pos") for tab in right_tabs}
-            if positions != {"10800"}:
+            if not _has_expected_right_tab(para, expected_right_tab_position):
                 irregular_right_tab.append(para)
+
+    tab_space_indices = {paragraph.index for paragraph in tab_space_hack_paragraphs}
+    excessive_tab_indices = {paragraph.index for paragraph in excessive_tab_paragraphs}
+    specific_manual_indices = tab_space_indices | {paragraph.index for paragraph in header_spacing_hack_paragraphs + date_spacing_hack_paragraphs}
+    repeated_space_paragraphs = [
+        paragraph for paragraph in repeated_space_paragraphs if paragraph.index not in specific_manual_indices
+    ]
+    tab_without_stop = [
+        paragraph
+        for paragraph in tab_without_stop
+        if paragraph.index not in tab_space_indices and paragraph.index not in excessive_tab_indices
+    ]
 
     if max_blank_run > 1:
         violations.append(
@@ -373,8 +429,11 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 "paragraph.right_tab_consistency",
                 "minor",
                 1,
-                "Some right-aligned tab stops differ from the canonical 7.5in position.",
-                {"paragraphs": [_paragraph_summary(p) for p in irregular_right_tab[:8]]},
+                "Some right-aligned tab stops differ from the expected position for the document page width and margins.",
+                {
+                    "expected_position_twips": expected_right_tab_position,
+                    "paragraphs": [_paragraph_summary(p) for p in irregular_right_tab[:8]],
+                },
             )
         )
 
@@ -418,10 +477,7 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 )
             )
 
-    detected_sections = _detect_sections(document)
     section_names = [section["name"] for section in detected_sections]
-    section_indices = {section["paragraph_index"] for section in detected_sections}
-    expected_sections = rubric["section_order"]["required_sections"]
 
     nonblank = [paragraph for paragraph in document.paragraphs if not paragraph.is_blank]
     if nonblank:
@@ -437,8 +493,8 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 )
             )
 
-    if len(document.paragraphs) > 2:
-        contact = document.paragraphs[2]
+    contact = _contact_paragraph(document, header_indices)
+    if contact:
         city_state_matches = CITY_STATE_PATTERN.findall(contact.text)
         if len(city_state_matches) != 2:
             violations.append(
@@ -450,14 +506,18 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                     {"paragraph": _paragraph_summary(contact), "detected_addresses": city_state_matches},
                 )
             )
-        if contact.tab_count < 2 or {"10800"} - _right_tab_positions(contact):
+        if contact.tab_count < 2 or not _has_expected_right_tab(contact, expected_right_tab_position):
             violations.append(
                 _make_violation(
                     "header.contact_single_row",
                     "major",
                     5,
                     "Header contact information must sit on one tab-separated row with a right tab stop.",
-                    {"paragraph": _paragraph_summary(contact), "tab_stops": contact.tab_stops},
+                    {
+                        "paragraph": _paragraph_summary(contact),
+                        "tab_stops": contact.tab_stops,
+                        "expected_position_twips": expected_right_tab_position,
+                    },
                 )
             )
 
@@ -545,13 +605,13 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
             )
         )
 
-    entries = _entry_paragraphs(document, section_indices)
+    entries = _entry_paragraphs(document, section_indices, header_indices)
     missing_right_tabs = []
     unbold_orgs = []
     missing_italic_roles = []
     missing_locations = []
     for entry in entries:
-        if entry.tab_count != 1 or {"10800"} - _right_tab_positions(entry):
+        if entry.tab_count != 1 or not _has_expected_right_tab(entry, expected_right_tab_position):
             missing_right_tabs.append(entry)
         if not _first_visible_run_bold(entry):
             unbold_orgs.append(entry)
@@ -568,7 +628,10 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 "major",
                 5,
                 "Entry dates must be right-aligned with one canonical right tab stop.",
-                {"paragraphs": [_paragraph_summary(p) for p in missing_right_tabs[:8]]},
+                {
+                    "expected_position_twips": expected_right_tab_position,
+                    "paragraphs": [_paragraph_summary(p) for p in missing_right_tabs[:8]],
+                },
             )
         )
 

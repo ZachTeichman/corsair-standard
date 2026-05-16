@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 from urllib.error import HTTPError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, quote_plus
 from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -26,6 +26,7 @@ GRAPH_AUTH_FLOWS: dict[str, dict[str, Any]] = {}
 GRAPH_SESSION: dict[str, Any] = {}
 GRAPH_SCOPES = "openid profile offline_access User.Read Files.ReadWrite"
 GRAPH_ROOT = "https://graph.microsoft.com"
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
 
 app = FastAPI(
@@ -142,6 +143,7 @@ def office_status() -> dict[str, Any]:
         "tenant": config["tenant"],
         "redirect_uri": config["redirect_uri"],
         "scopes": GRAPH_SCOPES,
+        "public_base_url": PUBLIC_BASE_URL or None,
     }
 
 
@@ -204,11 +206,11 @@ def office_callback(
 
 @app.get("/api/uploads/{upload_id}/original")
 def download_original(upload_id: str) -> FileResponse:
-    matches = list(UPLOAD_DIR.glob(f"{upload_id}_*.docx"))
+    matches = list(UPLOAD_DIR.glob(f"{upload_id}_original_*.docx"))
     if not matches:
         raise HTTPException(status_code=404, detail="Uploaded DOCX not found.")
     path = matches[0]
-    original_name = path.name.split("_", 1)[1]
+    original_name = path.name.split("_original_", 1)[1]
     return FileResponse(
         path,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -217,11 +219,11 @@ def download_original(upload_id: str) -> FileResponse:
 
 
 def _uploaded_docx(upload_id: str) -> tuple[Path, str]:
-    matches = list(UPLOAD_DIR.glob(f"{upload_id}_*.docx"))
+    matches = list(UPLOAD_DIR.glob(f"{upload_id}_original_*.docx"))
     if not matches:
         raise HTTPException(status_code=404, detail="Uploaded DOCX not found.")
     path = matches[0]
-    return path, path.name.split("_", 1)[1]
+    return path, path.name.split("_original_", 1)[1]
 
 
 @app.post("/api/uploads/{upload_id}/office-preview")
@@ -271,7 +273,7 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
         )
 
     upload_id = uuid.uuid4().hex
-    upload_path = UPLOAD_DIR / f"{upload_id}_{Path(filename).name}"
+    upload_path = UPLOAD_DIR / f"{upload_id}_original_{Path(filename).name}"
     with upload_path.open("wb") as handle:
         shutil.copyfileobj(file.file, handle)
 
@@ -305,6 +307,12 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
             "original_docx": f"/api/uploads/{upload_id}/original",
             "open_in_word": None,
             "office_online": None,
+            "office_viewer_embed": (
+                f"https://view.officeapps.live.com/op/view.aspx?src="
+                f"{quote_plus(f'{PUBLIC_BASE_URL}/api/uploads/{upload_id}/original')}"
+                if PUBLIC_BASE_URL
+                else None
+            ),
         },
     }
 
