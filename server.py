@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from corsair.analyzer import analyze_docx
+from corsair.annotator import annotate_docx
 
 UPLOAD_DIR = Path("var/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -218,6 +219,20 @@ def download_original(upload_id: str) -> FileResponse:
     )
 
 
+@app.get("/api/uploads/{upload_id}/annotated")
+def download_annotated(upload_id: str) -> FileResponse:
+    matches = list(UPLOAD_DIR.glob(f"{upload_id}_annotated_*.docx"))
+    if not matches:
+        raise HTTPException(status_code=404, detail="Annotated DOCX not found.")
+    path = matches[0]
+    original_name = path.name.split("_annotated_", 1)[1]
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=f"annotated-{original_name}",
+    )
+
+
 def _uploaded_docx(upload_id: str) -> tuple[Path, str]:
     matches = list(UPLOAD_DIR.glob(f"{upload_id}_original_*.docx"))
     if not matches:
@@ -278,6 +293,25 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
         shutil.copyfileobj(file.file, handle)
 
     result = analyze_docx(upload_path, render=False)
+    annotated_path = UPLOAD_DIR / f"{upload_id}_annotated_{Path(filename).name}"
+    try:
+        annotate_docx(upload_path, result.get("violations", []), annotated_path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not create annotated DOCX: {exc}") from exc
+
+    original_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/original" if PUBLIC_BASE_URL else None
+    annotated_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/annotated" if PUBLIC_BASE_URL else None
+    office_viewer_url = (
+        f"https://view.officeapps.live.com/op/view.aspx?src={quote_plus(annotated_public_url)}"
+        if annotated_public_url
+        else None
+    )
+    office_embed_url = (
+        f"https://view.officeapps.live.com/op/embed.aspx?src={quote_plus(annotated_public_url)}"
+        if annotated_public_url
+        else None
+    )
+
     preview: list[dict[str, Any]] = []
     render_preview = {
         "available": False,
@@ -305,14 +339,14 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
         "document_links": {
             "upload_id": upload_id,
             "original_docx": f"/api/uploads/{upload_id}/original",
+            "annotated_docx": f"/api/uploads/{upload_id}/annotated",
+            "original_public_url": original_public_url,
+            "annotated_public_url": annotated_public_url,
             "open_in_word": None,
             "office_online": None,
-            "office_viewer_embed": (
-                f"https://view.officeapps.live.com/op/view.aspx?src="
-                f"{quote_plus(f'{PUBLIC_BASE_URL}/api/uploads/{upload_id}/original')}"
-                if PUBLIC_BASE_URL
-                else None
-            ),
+            "office_viewer_embed": office_embed_url,
+            "office_viewer_open": office_viewer_url,
+            "office_viewer_source": "annotated_docx",
         },
     }
 

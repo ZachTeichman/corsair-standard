@@ -139,7 +139,7 @@ function setLoading(isLoading) {
   submitButton.disabled = isLoading || !fileInput.files.length;
   submitButton.textContent = isLoading ? "Auditing document..." : "Run format audit";
   statusLine.textContent = isLoading
-    ? "Reading DOCX structure and checking deterministic formatting rules."
+    ? "Reading DOCX structure, adding Word comments, and preparing the preview."
     : statusLine.textContent;
 }
 
@@ -367,56 +367,30 @@ function previewText(text) {
 
 function renderDocumentPreview(payload, violations) {
   const officeViewerEmbed = payload.document_links?.office_viewer_embed;
-  const sections = payload.result?.document_summary?.detected_sections || [];
-  const outlineRows = buildStructureOutline(sections, violations);
+  const issueCount = violations.length;
 
   resumePage.innerHTML = `
-    <div class="structure-outline">
-      <div class="structure-actions">
-        <div>
-          <span class="section-kicker">Document structure</span>
-          <h3>Issue map</h3>
-          <p>Logical section outline from DOCX XML. Open the Word preview for exact layout.</p>
+    ${officeViewerEmbed ? `
+      <div class="office-preview-shell">
+        <iframe
+          class="office-preview-frame"
+          src="${escapeHtml(officeViewerEmbed)}"
+          title="Annotated Microsoft Word preview"
+          loading="eager"
+          referrerpolicy="no-referrer-when-downgrade"
+          allow="fullscreen"
+        ></iframe>
+        <div class="office-preview-caption">
+          <span class="section-kicker">Annotated copy</span>
+          <p>${issueCount ? `${issueCount} Corsair Standard comment${issueCount === 1 ? "" : "s"} added to a copied DOCX.` : "Clean DOCX copy loaded in Microsoft Viewer."}</p>
         </div>
-        ${officeViewerEmbed ? `
-          <a class="docx-button" href="${escapeHtml(officeViewerEmbed)}" target="_blank" rel="noreferrer">
-            Open Microsoft preview
-          </a>
-        ` : ""}
       </div>
-      ${sections.length ? `
-        <ol class="section-outline">
-          ${sections.map((section) => sectionOutlineItem(section, outlineRows)).join("")}
-        </ol>
-      ` : `
-        <div class="empty-state">No canonical Corsair sections detected yet.</div>
-      `}
-      ${outlineRows.unsectioned.length ? `
-        <div class="unsectioned-issues">
-          <h4>Header and document-level issues</h4>
-          ${outlineRows.unsectioned.map(structureIssueRow).join("")}
-        </div>
-      ` : ""}
-      <div class="word-preview-note">
-        <span class="section-kicker">Microsoft Word preview</span>
-        <p>The original DOCX is not modified. The browser outline is an audit map, not a simulated Word render.</p>
+    ` : `
+      <div class="preview-empty">
+        Microsoft Viewer preview needs a public DOCX URL. Start the Cloudflare tunnel and restart the server with PUBLIC_BASE_URL.
       </div>
-    </div>
+    `}
   `;
-
-  resumePage.querySelectorAll(".structure-issue").forEach((button) => {
-    button.addEventListener("mouseenter", () => setActiveIssue(button.dataset.issueLine));
-    button.addEventListener("mouseleave", clearActiveIssue);
-    button.addEventListener("focusin", () => setActiveIssue(button.dataset.issueLine));
-    button.addEventListener("focusout", clearActiveIssue);
-    button.addEventListener("click", () => {
-      setActiveIssue(button.dataset.issueLine);
-      document.querySelector(`.violation[data-issue-index="${button.dataset.issueLine}"]`)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    });
-  });
 }
 
 function buildStructureOutline(sections, violations) {
@@ -589,11 +563,16 @@ form.addEventListener("submit", async (event) => {
     const payload = await analyzeFile(file);
     rememberAudit(payload);
     renderResult(payload);
-    const viewerUrl = payload.document_links?.office_viewer_embed;
+    const viewerUrl = payload.document_links?.office_viewer_open || payload.document_links?.office_viewer_embed;
     if (pendingViewerWindow && viewerUrl) {
       pendingViewerWindow.location.href = viewerUrl;
+      pendingViewerWindow.focus();
+      statusLine.textContent = "Audit complete. Annotated Word preview opened in a new tab.";
     } else if (pendingViewerWindow) {
       pendingViewerWindow.close();
+    } else if (viewerUrl) {
+      window.open(viewerUrl, "_blank", "noopener,noreferrer");
+      statusLine.textContent = "Audit complete. Annotated Word preview opened in a new tab.";
     }
   } catch (error) {
     if (pendingViewerWindow) pendingViewerWindow.close();
