@@ -46,7 +46,7 @@ const ruleLabels = {
   "document.margin_range": "Margins in range",
   "layout.no_tables": "No layout tables",
   "layout.no_textboxes": "No text boxes",
-  "header.name_centered_top_line": "Name centered on top line",
+  "header.name_centered_top_line": "Name header structure",
   "header.dual_address": "Dual address in header",
   "header.contact_single_row": "Contact info on one row",
   "section.corsair_structure_detected": "Corsair section structure",
@@ -61,14 +61,14 @@ const ruleLabels = {
   "entry.location_present": "Entry locations present",
   "paragraph.no_consecutive_blank_lines": "No consecutive blank lines",
   "paragraph.no_leading_spaces": "No literal leading spaces",
-  "paragraph.no_manual_alignment_spaces": "No manual alignment spaces",
-  "paragraph.tab_space_alignment_hacks": "Tabs mixed with space padding",
-  "paragraph.excessive_alignment_tabs": "Excessive tab alignment",
-  "paragraph.tabs_require_defined_stops": "Tabs use defined stops",
+  "paragraph.no_manual_alignment_spaces": "Spacebar alignment",
+  "paragraph.tab_space_alignment_hacks": "Mixed tab/space alignment",
+  "paragraph.excessive_alignment_tabs": "Repeated tab alignment",
+  "paragraph.tabs_require_defined_stops": "Missing saved tab stop",
   "paragraph.right_tab_consistency": "Right tab consistency",
   "paragraph.body_alignment_consistency": "Body alignment consistency",
-  "header.contact_spacing_hack": "Header spacing hack",
-  "entry.date_alignment_spacing_hack": "Date spacing hack",
+  "header.contact_spacing_hack": "Header manual spacing",
+  "entry.date_alignment_spacing_hack": "Date manual spacing",
   "bullet.indent_consistency": "Bullet indent consistency",
   "bullet.no_nested_bullets": "No nested bullets",
   "bullet.single_line_length": "Bullet length risk",
@@ -81,7 +81,7 @@ const fixGuidance = {
   "document.margin_range": "Set all page margins to the allowed Corsair range and keep them symmetric.",
   "layout.no_tables": "Remove layout tables and rebuild the content as normal Word paragraphs.",
   "layout.no_textboxes": "Move floating text box content into regular document paragraphs.",
-  "header.name_centered_top_line": "Place the name on the first visible line using the canonical centered header setup.",
+  "header.name_centered_top_line": "This can look centered, but it should be centered with Word alignment or a saved center tab stop so it stays stable.",
   "header.dual_address": "Put exactly two city/state addresses in the header contact area.",
   "header.contact_single_row": "Keep phone, email, and both locations on one tab-separated contact row.",
   "section.corsair_structure_detected": "Restore the canonical Corsair section structure before auditing details.",
@@ -96,20 +96,20 @@ const fixGuidance = {
   "entry.location_present": "Add City, ST to the entry line before the date.",
   "paragraph.no_consecutive_blank_lines": "Remove extra blank paragraphs and use paragraph spacing instead.",
   "paragraph.no_leading_spaces": "Delete literal leading spaces and use paragraph indentation.",
-  "paragraph.no_manual_alignment_spaces": "Replace repeated spaces with tab stops or paragraph formatting.",
-  "paragraph.tab_space_alignment_hacks": "Remove space padding around tabs and use defined tab stops or paragraph settings.",
-  "paragraph.excessive_alignment_tabs": "Replace long keyboard-tab runs with a small set of explicit tab stops.",
-  "paragraph.tabs_require_defined_stops": "Define tab stops for paragraphs that use tab characters.",
+  "paragraph.no_manual_alignment_spaces": "Delete repeated spaces and use Word tab stops, paragraph alignment, or indentation so the line stays stable after edits.",
+  "paragraph.tab_space_alignment_hacks": "Delete the spaces around tabs and use one tab with a saved tab stop instead.",
+  "paragraph.excessive_alignment_tabs": "Replace repeated tab presses with one tab and a saved tab stop.",
+  "paragraph.tabs_require_defined_stops": "If this tab is meant to align text, add a tab stop in Word's ruler or paragraph settings.",
   "paragraph.right_tab_consistency": "Use the same right tab stop position across date-aligned lines.",
   "paragraph.body_alignment_consistency": "Keep bullet paragraph alignment consistent across the document.",
-  "header.contact_spacing_hack": "Rebuild the header contact row with structured tabs/tab stops, not space padding.",
-  "entry.date_alignment_spacing_hack": "Use a clean right-aligned tab stop for dates instead of spaces mixed with tabs.",
+  "header.contact_spacing_hack": "The header may look aligned, but rebuild it with Word tab stops or paragraph alignment so phone, email, and locations do not drift.",
+  "entry.date_alignment_spacing_hack": "The date may look aligned, but delete the space padding and use a right-aligned tab stop.",
   "bullet.indent_consistency": "Use one bullet indent and hanging indent pattern throughout.",
   "bullet.no_nested_bullets": "Flatten nested bullet levels into the standard Corsair bullet level.",
   "bullet.single_line_length": "Tighten long bullets or adjust spacing so they fit the expected line length.",
   "typography.single_font_family": "Use one font family across the document.",
   "typography.body_font_size_consistency": "Normalize body copy to one 10-12pt size.",
-  "typography.no_unauthorized_inline_emphasis": "Remove bold or italic emphasis that is not part of the template hierarchy.",
+  "typography.no_unauthorized_inline_emphasis": "Remove bold or italic emphasis that is not part of the target visual hierarchy.",
 };
 
 function setSelectedFile(file) {
@@ -281,7 +281,7 @@ function renderViolations(violations) {
               <span class="severity ${escapeHtml(violation.severity)}">${escapeHtml(violation.severity)}</span>
             </div>
             <p>${escapeHtml(violation.message)}</p>
-            <p class="fix-guidance">${escapeHtml(fixGuidance[violation.rule_id] || "Review the highlighted formatting evidence and restore the canonical template formatting.")}</p>
+            <p class="fix-guidance">${escapeHtml(fixGuidance[violation.rule_id] || "Review the highlighted formatting evidence and rebuild it with stable Word formatting.")}</p>
           </div>
           ${evidenceMarkup}
           ${moreMarkup}
@@ -366,24 +366,17 @@ function previewText(text) {
 }
 
 function renderDocumentPreview(payload, violations) {
-  const officeViewerEmbed = payload.document_links?.office_viewer_embed;
+  const officeViewerOpen = payload.document_links?.office_viewer_open;
   const issueCount = violations.length;
 
   resumePage.innerHTML = `
-    ${officeViewerEmbed ? `
-      <div class="office-preview-shell">
-        <iframe
-          class="office-preview-frame"
-          src="${escapeHtml(officeViewerEmbed)}"
-          title="Annotated Microsoft Word preview"
-          loading="eager"
-          referrerpolicy="no-referrer-when-downgrade"
-          allow="fullscreen"
-        ></iframe>
-        <div class="office-preview-caption">
-          <span class="section-kicker">Annotated copy</span>
-          <p>${issueCount ? `${issueCount} Corsair Standard comment${issueCount === 1 ? "" : "s"} added to a copied DOCX.` : "Clean DOCX copy loaded in Microsoft Viewer."}</p>
-        </div>
+    ${officeViewerOpen ? `
+      <div class="office-preview-redirect">
+        <span class="section-kicker">Annotated Word preview</span>
+        <h3>Opening Microsoft Viewer</h3>
+        <p>${issueCount ? `${issueCount} Corsair Standard comment${issueCount === 1 ? "" : "s"} added to a copied DOCX.` : "Clean DOCX copy ready."}</p>
+        <p class="muted-note">The annotated preview opens in a separate tab so this audit stays available.</p>
+        <a class="docx-button" href="${escapeHtml(officeViewerOpen)}">Open annotated preview</a>
       </div>
     ` : `
       <div class="preview-empty">
@@ -554,7 +547,7 @@ form.addEventListener("submit", async (event) => {
   pendingViewerWindow = window.open("about:blank", "_blank");
   if (pendingViewerWindow) {
     pendingViewerWindow.document.write(
-      "<p style='font-family: system-ui, sans-serif; padding: 24px;'>Preparing Microsoft Word preview...</p>"
+      "<p style='font-family: system-ui, sans-serif; padding: 24px;'>Preparing annotated Microsoft Word preview...</p>"
     );
   }
 
@@ -563,16 +556,15 @@ form.addEventListener("submit", async (event) => {
     const payload = await analyzeFile(file);
     rememberAudit(payload);
     renderResult(payload);
-    const viewerUrl = payload.document_links?.office_viewer_open || payload.document_links?.office_viewer_embed;
-    if (pendingViewerWindow && viewerUrl) {
-      pendingViewerWindow.location.href = viewerUrl;
-      pendingViewerWindow.focus();
-      statusLine.textContent = "Audit complete. Annotated Word preview opened in a new tab.";
-    } else if (pendingViewerWindow) {
-      pendingViewerWindow.close();
-    } else if (viewerUrl) {
-      window.open(viewerUrl, "_blank", "noopener,noreferrer");
-      statusLine.textContent = "Audit complete. Annotated Word preview opened in a new tab.";
+    const viewerUrl = payload.document_links?.office_viewer_open;
+    if (viewerUrl) {
+      if (pendingViewerWindow) {
+        pendingViewerWindow.location.href = viewerUrl;
+        pendingViewerWindow.focus();
+        statusLine.textContent = "Audit complete. Annotated Word preview opened in a separate tab.";
+      } else {
+        statusLine.textContent = "Audit complete. Use the preview fallback link to open the annotated Word document.";
+      }
     }
   } catch (error) {
     if (pendingViewerWindow) pendingViewerWindow.close();

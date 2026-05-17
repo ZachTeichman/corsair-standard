@@ -359,69 +359,69 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
 
     if repeated_space_paragraphs:
         violations.append(
-            _make_violation(
-                "paragraph.no_manual_alignment_spaces",
-                "major",
-                4,
-                "One or more paragraphs contain repeated spaces that look like manual alignment hacks.",
-                {"paragraphs": [_paragraph_summary(p) for p in repeated_space_paragraphs[:8]]},
+                _make_violation(
+                    "paragraph.no_manual_alignment_spaces",
+                    "major",
+                    4,
+                    "One or more lines are positioned with repeated spaces instead of stable Word formatting.",
+                    {"paragraphs": [_paragraph_summary(p) for p in repeated_space_paragraphs[:8]]},
+                )
             )
-        )
 
     if tab_space_hack_paragraphs:
         violations.append(
-            _make_violation(
-                "paragraph.tab_space_alignment_hacks",
-                "major",
-                6,
-                "Tabs and repeated spaces are mixed in the same layout rows.",
-                {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(tab_space_hack_paragraphs)[:8]]},
+                _make_violation(
+                    "paragraph.tab_space_alignment_hacks",
+                    "major",
+                    6,
+                    "Some lines look aligned because tabs and extra spaces are mixed together.",
+                    {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(tab_space_hack_paragraphs)[:8]]},
+                )
             )
-        )
 
     if excessive_tab_paragraphs:
         violations.append(
-            _make_violation(
-                "paragraph.excessive_alignment_tabs",
-                "major",
-                4,
-                "Multiple tab characters are being used as keyboard alignment instead of defined tab stops.",
-                {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(excessive_tab_paragraphs)[:8]]},
+                _make_violation(
+                    "paragraph.excessive_alignment_tabs",
+                    "major",
+                    4,
+                    "Some lines are pushed into place with repeated tab presses instead of saved tab stops.",
+                    {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(excessive_tab_paragraphs)[:8]]},
+                )
             )
-        )
 
     if tab_without_stop:
         violations.append(
-            _make_violation(
-                "paragraph.tabs_require_defined_stops",
-                "major",
-                4,
-                "One or more paragraphs use tab characters without explicit tab stop definitions.",
-                {"paragraphs": [_paragraph_summary(p) for p in tab_without_stop[:8]]},
+                _make_violation(
+                    "paragraph.tabs_require_defined_stops",
+                    "major",
+                    4,
+                    "Some tabs are used without saved tab stops, so Word decides the spacing automatically.",
+                    {"paragraphs": [_paragraph_summary(p) for p in tab_without_stop[:8]]},
+                )
             )
-        )
 
     if header_spacing_hack_paragraphs:
         violations.append(
-            _make_violation(
-                "header.contact_spacing_hack",
-                "major",
-                6,
-                "Header/contact rows use manual spacing patterns instead of structured tab alignment.",
-                {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(header_spacing_hack_paragraphs)[:8]]},
+                _make_violation(
+                    "header.contact_spacing_hack",
+                    "major",
+                    6,
+                    "The header may look aligned, but it is built with manual spacing that can break during editing.",
+                    {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(header_spacing_hack_paragraphs)[:8]]},
+                )
             )
-        )
 
     if date_spacing_hack_paragraphs:
         violations.append(
-            _make_violation(
-                "entry.date_alignment_spacing_hack",
-                "major",
-                6,
-                "One or more date rows appear to be aligned with spaces or tab-space padding instead of a clean right tab stop.",
-                {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(date_spacing_hack_paragraphs)[:8]]},
+                _make_violation(
+                    "entry.date_alignment_spacing_hack",
+                    "major",
+                    6,
+                    "Some dates may look aligned, but they are positioned with spaces or mixed tab spacing.",
+                    {"paragraphs": [_paragraph_summary(p) for p in _unique_paragraphs(date_spacing_hack_paragraphs)[:8]]},
+                )
             )
-        )
 
     if irregular_right_tab:
         violations.append(
@@ -488,7 +488,7 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                     "header.name_centered_top_line",
                     "critical",
                     5,
-                    "Name must be the first visible line and centered using the canonical center tab stop.",
+                    "The name may look centered, but it is built in a way that can shift during editing.",
                     {"paragraph": _paragraph_summary(first)},
                 )
             )

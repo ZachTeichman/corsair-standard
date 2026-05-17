@@ -408,30 +408,29 @@ h2 {
   font-weight: 700;
 }
 
-.office-preview-shell {
+.office-preview-redirect {
   display: grid;
-  gap: 12px;
+  place-items: start;
+  gap: 14px;
   width: 100%;
-}
-
-.office-preview-frame {
-  width: 100%;
-  min-height: 740px;
-  border: 0;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.office-preview-caption {
-  padding: 12px 14px;
+  min-height: 360px;
+  align-content: center;
+  padding: 42px;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: #10141a;
+}
+
+.office-preview-redirect h3 {
+  font-size: 34px;
+}
+
+.office-preview-redirect p {
   color: var(--muted);
 }
 
-.office-preview-caption p {
-  margin-top: 4px;
+.muted-note {
+  font-size: 15px;
 }
 
 .docx-native-card {

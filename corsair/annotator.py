@@ -22,27 +22,27 @@ RULE_LABELS: dict[str, str] = {
     "document.margin_range": "Margins out of range",
     "layout.no_tables": "Layout tables not allowed",
     "layout.no_textboxes": "Text boxes not allowed",
-    "header.name_centered_top_line": "Name must be centered on top line",
+    "header.name_centered_top_line": "Name looks centered but is fragile to edit",
     "header.dual_address": "Header needs exactly two city/state addresses",
     "header.contact_single_row": "Contact info must be on one tab-separated row",
-    "header.contact_spacing_hack": "Header uses spacing hacks instead of tab stops",
+    "header.contact_spacing_hack": "Header looks aligned but is built with manual spacing",
     "section.corsair_structure_detected": "Corsair section structure not detected",
     "section.required_presence": "Required section missing",
     "section.order": "Sections out of order",
     "section.labels_all_caps": "Section label must be all caps",
     "section.headers_bold": "Section header must be bold",
     "section.divider_rule": "Section header missing bottom border rule",
-    "entry.date_right_tab": "Entry date must use right-aligned tab stop",
+    "entry.date_right_tab": "Date looks aligned but is fragile to edit",
     "entry.organization_bold": "Organization name must be bold",
     "entry.role_italic": "Role/title must be italicized",
     "entry.location_present": "Entry line missing City, ST location",
-    "entry.date_alignment_spacing_hack": "Date aligned with spaces instead of tab stop",
+    "entry.date_alignment_spacing_hack": "Date alignment is being faked with spaces",
     "paragraph.no_consecutive_blank_lines": "Consecutive blank lines",
     "paragraph.no_leading_spaces": "Leading spaces used instead of indent",
-    "paragraph.no_manual_alignment_spaces": "Repeated spaces used for alignment",
-    "paragraph.tab_space_alignment_hacks": "Tabs and spaces mixed for alignment",
-    "paragraph.excessive_alignment_tabs": "Multiple tabs used as keyboard alignment",
-    "paragraph.tabs_require_defined_stops": "Tab used without a defined tab stop",
+    "paragraph.no_manual_alignment_spaces": "Text is lined up with the spacebar",
+    "paragraph.tab_space_alignment_hacks": "Text looks aligned but uses tabs mixed with spaces",
+    "paragraph.excessive_alignment_tabs": "Text is pushed into place with repeated tabs",
+    "paragraph.tabs_require_defined_stops": "Tab was used without a saved tab stop",
     "paragraph.right_tab_consistency": "Right tab stop position inconsistent",
     "paragraph.body_alignment_consistency": "Bullet alignment inconsistent",
     "bullet.indent_consistency": "Bullet indentation inconsistent",
@@ -57,27 +57,27 @@ FIX_GUIDANCE: dict[str, str] = {
     "document.margin_range": "Set all page margins to between 0.5in and 1.0in.",
     "layout.no_tables": "Remove layout tables and rebuild content as normal paragraphs.",
     "layout.no_textboxes": "Move text box content into regular document paragraphs.",
-    "header.name_centered_top_line": "Place your name on the first line, centered, using the canonical header style.",
+    "header.name_centered_top_line": "Keep the name visually centered, but center it with Word's paragraph alignment or a saved center tab stop instead of manual spacing.",
     "header.dual_address": "Include exactly two city/state addresses in the header contact row.",
-    "header.contact_single_row": "Put phone, email, and both locations on one tab-separated row with a right tab stop.",
-    "header.contact_spacing_hack": "Rebuild the header contact row using defined tab stops, not space padding.",
+    "header.contact_single_row": "Keep the same visual layout, but use Word tab stops or paragraph alignment for the left, center, and right contact fields instead of lining things up by eye.",
+    "header.contact_spacing_hack": "Delete the extra spaces between contact fields and use Word tab stops or paragraph alignment to keep the same visual layout.",
     "section.corsair_structure_detected": "Restore canonical Corsair section headers.",
     "section.required_presence": "Add the missing required section.",
     "section.order": "Reorder sections to match the required Corsair sequence.",
     "section.labels_all_caps": "Make the section label fully uppercase.",
     "section.headers_bold": "Apply bold formatting to this section header.",
     "section.divider_rule": "Add a bottom border rule directly beneath this section header.",
-    "entry.date_right_tab": "Use a single right-aligned tab stop for the date. Delete manual spaces.",
+    "entry.date_right_tab": "Delete the spaces before the date and use a right-aligned tab stop so all dates snap to the same right edge.",
     "entry.organization_bold": "Bold the organization or institution name at the start of the entry line.",
     "entry.role_italic": "Italicize the role, title, or program descriptor before the date tab.",
     "entry.location_present": "Add City, ST before the date on this entry line.",
-    "entry.date_alignment_spacing_hack": "Replace space/tab padding with a clean right-aligned tab stop for the date.",
+    "entry.date_alignment_spacing_hack": "Delete the space padding before the date and use a right-aligned tab stop.",
     "paragraph.no_consecutive_blank_lines": "Remove the extra blank paragraph. Use paragraph spacing instead.",
     "paragraph.no_leading_spaces": "Delete the leading spaces. Use paragraph indent settings instead.",
-    "paragraph.no_manual_alignment_spaces": "Replace repeated spaces with a tab stop or paragraph indent.",
-    "paragraph.tab_space_alignment_hacks": "Remove space padding around tabs. Use defined tab stops only.",
-    "paragraph.excessive_alignment_tabs": "Replace multiple tab characters with one tab and a defined tab stop.",
-    "paragraph.tabs_require_defined_stops": "Define a tab stop for this paragraph before using a tab character.",
+    "paragraph.no_manual_alignment_spaces": "Delete the repeated spaces. If the text needs to align, use Word's tab stops, paragraph alignment, or indentation instead.",
+    "paragraph.tab_space_alignment_hacks": "Delete the spaces around the tabs. Use one tab with a saved tab stop so the line stays aligned after edits.",
+    "paragraph.excessive_alignment_tabs": "Replace the repeated tab presses with one tab and a saved tab stop.",
+    "paragraph.tabs_require_defined_stops": "If this tab is meant to align text, add a tab stop in Word's ruler or paragraph settings. Otherwise Word may shift the text unpredictably.",
     "paragraph.right_tab_consistency": "Use the same right tab stop position on all date-aligned lines.",
     "paragraph.body_alignment_consistency": "Set all bullet paragraphs to the same alignment.",
     "bullet.indent_consistency": "Use one consistent bullet indent and hanging indent throughout.",
@@ -85,13 +85,60 @@ FIX_GUIDANCE: dict[str, str] = {
     "bullet.single_line_length": "Tighten this bullet or adjust margins so it fits on one line.",
     "typography.single_font_family": "Select all text and apply one font family throughout.",
     "typography.body_font_size_consistency": "Normalize all body text to one size between 10pt and 12pt.",
-    "typography.no_unauthorized_inline_emphasis": "Remove bold or italic from this bullet unless it is part of the template hierarchy.",
+    "typography.no_unauthorized_inline_emphasis": "Remove bold or italic from this bullet unless the visual layout intentionally calls for it.",
 }
 
 SEVERITY_PREFIX = {
     "critical": "Critical",
     "major": "Major",
     "minor": "Minor",
+}
+
+COMMENT_EXPLANATIONS: dict[str, tuple[str, str]] = {
+    "header.name_centered_top_line": (
+        "This may look centered on screen, but it appears to be centered in a way that can break during editing.",
+        "A stable center alignment keeps the name in place if phone, email, margins, or other header text changes.",
+    ),
+    "header.contact_single_row": (
+        "The contact information may look close visually, but it is not built as a clean, easy-to-edit row.",
+        "Clean alignment keeps each contact field from drifting when a phone number, email, or location changes.",
+    ),
+    "header.contact_spacing_hack": (
+        "The header may look aligned, but Word is getting there through extra spaces or tab-space padding.",
+        "That is fragile: one edit can push phone, email, or location text out of alignment.",
+    ),
+    "paragraph.no_manual_alignment_spaces": (
+        "This line is using repeated spaces to position text.",
+        "It may look okay today, but manual spacing tends to break when names, dates, margins, or fonts change.",
+    ),
+    "paragraph.tab_space_alignment_hacks": (
+        "This line mixes tabs with extra spaces to make the text appear aligned.",
+        "That makes the layout fragile because alignment is controlled by spacebar adjustments instead of Word's alignment tools.",
+    ),
+    "paragraph.excessive_alignment_tabs": (
+        "This line uses multiple tab presses to push text into place.",
+        "Repeated tabs are fragile because the spacing depends on Word's default tab behavior instead of an intentional alignment point.",
+    ),
+    "paragraph.tabs_require_defined_stops": (
+        "This line uses a tab, but the paragraph does not define where that tab should land.",
+        "A saved tab stop makes the alignment repeatable and prevents text from shifting during edits.",
+    ),
+    "entry.date_right_tab": (
+        "The date may look right-aligned, but it is not attached to a stable right-alignment point.",
+        "A right-aligned tab stop keeps every date on the same right edge after edits.",
+    ),
+    "entry.date_alignment_spacing_hack": (
+        "The date is being pushed into position with spaces or mixed tab spacing.",
+        "That makes the line fragile; the date should snap to a right-aligned tab stop.",
+    ),
+    "bullet.indent_consistency": (
+        "The bullets are not all using the same Word indentation settings.",
+        "Consistent bullet indents keep the resume looking clean after edits and help prevent line wraps from drifting.",
+    ),
+    "bullet.no_nested_bullets": (
+        "This bullet is using a lower nested level than the Corsair Standard allows.",
+        "Flat bullets keep the resume compact and consistent with the target visual layout.",
+    ),
 }
 
 
@@ -115,14 +162,23 @@ def _comment_lines(violation: dict[str, Any]) -> list[str]:
     rule_id = str(violation.get("rule_id") or "formatting.issue")
     severity = str(violation.get("severity") or "minor")
     label = RULE_LABELS.get(rule_id, rule_id)
-    message = str(violation.get("message") or "Formatting issue detected.")
+    meaning, why = COMMENT_EXPLANATIONS.get(
+        rule_id,
+        (
+            str(violation.get("message") or "Formatting issue detected."),
+            "This matters because Corsair Standard checks repeatable Word formatting, not just whether the document looks close at first glance.",
+        ),
+    )
     guidance = FIX_GUIDANCE.get(rule_id, "Review and correct this formatting issue.")
     prefix = SEVERITY_PREFIX.get(severity, "Issue")
     return [
         f"{prefix}: {label}",
-        message,
         "",
-        f"Fix: {guidance}",
+        f"What this means: {meaning}",
+        "",
+        f"Why it matters: {why}",
+        "",
+        f"How to fix: {guidance}",
     ]
 
 
@@ -264,7 +320,10 @@ def annotate_docx(
         entries = {item.filename: source.read(item.filename) for item in source.infolist()}
 
     document_root = ET.fromstring(entries["word/document.xml"])
-    body_paragraphs = document_root.findall(".//" + _w("body") + "/" + _w("p"))
+    body = document_root.find(".//" + _w("body"))
+    if body is None:
+        raise ValueError("word/document.xml has no <w:body> element.")
+    body_paragraphs = body.findall(_w("p"))
     if not body_paragraphs:
         raise ValueError("word/document.xml has no body paragraphs.")
 

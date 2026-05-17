@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 from urllib.error import HTTPError
-from urllib.parse import quote, urlencode, quote_plus
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -302,12 +302,12 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
     original_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/original" if PUBLIC_BASE_URL else None
     annotated_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/annotated" if PUBLIC_BASE_URL else None
     office_viewer_url = (
-        f"https://view.officeapps.live.com/op/view.aspx?src={quote_plus(annotated_public_url)}"
+        f"https://view.officeapps.live.com/op/view.aspx?src={quote(annotated_public_url, safe='')}"
         if annotated_public_url
         else None
     )
     office_embed_url = (
-        f"https://view.officeapps.live.com/op/embed.aspx?src={quote_plus(annotated_public_url)}"
+        f"https://view.officeapps.live.com/op/embed.aspx?src={quote(annotated_public_url, safe='')}&action=embedview&wdStartOn=1"
         if annotated_public_url
         else None
     )
