@@ -345,10 +345,12 @@ def parse_docx(path: str | Path) -> DocumentModel:
         )
         effective_indent = dict(effective_ppr.get("indent", {}))
         if numbering_id and numbering_level_text:
+            direct_indent = _attr_map(ppr_node.find("./w:ind", NS)) if ppr_node is not None else {}
             effective_indent = _merge_dict(
-                numbering_indents.get((numbering_id, numbering_level_text), {}),
                 effective_indent,
+                numbering_indents.get((numbering_id, numbering_level_text), {}),
             )
+            effective_indent = _merge_dict(effective_indent, direct_indent)
         has_ooxml_numbering = bool(numbering_id)
         has_unicode_bullet = text.lstrip().startswith(("• ", "● "))
         has_list_style = "list" in (style_name or "").lower()

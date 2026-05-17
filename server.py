@@ -23,6 +23,7 @@ from corsair.annotator import annotate_docx
 
 UPLOAD_DIR = Path("var/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+TEMPLATE_PATH = Path("templates/corsair_clean_format_template.docx")
 GRAPH_AUTH_FLOWS: dict[str, dict[str, Any]] = {}
 GRAPH_SESSION: dict[str, Any] = {}
 GRAPH_SCOPES = "openid profile offline_access User.Read Files.ReadWrite"
@@ -51,6 +52,17 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/template/clean-docx")
+def download_clean_template() -> FileResponse:
+    if not TEMPLATE_PATH.exists():
+        raise HTTPException(status_code=404, detail="Clean template DOCX not found.")
+    return FileResponse(
+        TEMPLATE_PATH,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename="Corsair-Clean-Formatting-Template.docx",
+    )
 
 
 def _graph_config() -> dict[str, str | None]:

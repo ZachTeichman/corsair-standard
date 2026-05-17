@@ -34,6 +34,7 @@ let auditHistory = loadAuditHistory();
 let activeFilter = "all";
 let currentPayload = null;
 let pendingViewerWindow = null;
+let selectedFile = null;
 
 const countEls = {
   critical: document.querySelector("#critical-count"),
@@ -52,10 +53,14 @@ const ruleLabels = {
   "section.corsair_structure_detected": "Corsair section structure",
   "section.required_presence": "Required sections present",
   "section.order": "Section order",
+  "section.label_spelling": "Section heading spelling",
   "section.labels_all_caps": "Section labels all caps",
   "section.headers_bold": "Section headers bold",
   "section.divider_rule": "Section divider rules",
+  "section.reverse_chronological_order": "Reverse chronological order",
   "entry.date_right_tab": "Entry dates right-aligned",
+  "entry.date_range_en_dash": "Date range dash",
+  "entry.date_range_valid": "Date range valid",
   "entry.organization_bold": "Organization names bold",
   "entry.role_italic": "Roles italicized",
   "entry.location_present": "Entry locations present",
@@ -69,9 +74,7 @@ const ruleLabels = {
   "paragraph.body_alignment_consistency": "Body alignment consistency",
   "header.contact_spacing_hack": "Header manual spacing",
   "entry.date_alignment_spacing_hack": "Date manual spacing",
-  "bullet.indent_consistency": "Bullet indent consistency",
-  "bullet.no_nested_bullets": "No nested bullets",
-  "bullet.single_line_length": "Bullet length risk",
+  "bullet.indent_consistency": "First-level bullet indent",
   "typography.single_font_family": "Single font family",
   "typography.body_font_size_consistency": "Body font size consistency",
   "typography.no_unauthorized_inline_emphasis": "No unauthorized emphasis",
@@ -87,10 +90,14 @@ const fixGuidance = {
   "section.corsair_structure_detected": "Restore the canonical Corsair section structure before auditing details.",
   "section.required_presence": "Add the missing required section labels in the Corsair sequence.",
   "section.order": "Reorder sections to match the required Corsair flow.",
+  "section.label_spelling": "Fix the section heading text so it exactly matches the required heading.",
   "section.labels_all_caps": "Make section labels fully uppercase.",
   "section.headers_bold": "Apply bold formatting to every section label.",
   "section.divider_rule": "Add a bottom divider rule directly beneath each section header.",
+  "section.reverse_chronological_order": "Move entries so each section runs newest to oldest. Check Education, Professional Experience, and Leadership separately.",
   "entry.date_right_tab": "Use one right-aligned tab stop for dates instead of spacing them manually.",
+  "entry.date_range_en_dash": "Use an en dash between date ranges, like January 2026 – Present, instead of a keyboard hyphen.",
+  "entry.date_range_valid": "Correct the date range so the end date is valid and comes after the start date.",
   "entry.organization_bold": "Apply bold formatting to the organization or institution at the start of the entry.",
   "entry.role_italic": "Italicize the role, title, or program descriptor before the date tab.",
   "entry.location_present": "Add City, ST to the entry line before the date.",
@@ -104,9 +111,7 @@ const fixGuidance = {
   "paragraph.body_alignment_consistency": "Keep bullet paragraph alignment consistent across the document.",
   "header.contact_spacing_hack": "The header may look aligned, but rebuild it with Word tab stops or paragraph alignment so phone, email, and locations do not drift.",
   "entry.date_alignment_spacing_hack": "The date may look aligned, but delete the space padding and use a right-aligned tab stop.",
-  "bullet.indent_consistency": "Use one bullet indent and hanging indent pattern throughout.",
-  "bullet.no_nested_bullets": "Flatten nested bullet levels into the standard Corsair bullet level.",
-  "bullet.single_line_length": "Tighten long bullets or adjust spacing so they fit the expected line length.",
+  "bullet.indent_consistency": "Use a 0.25in bullet position with the text starting at 0.5in. Intentional sub-bullets can be indented farther in.",
   "typography.single_font_family": "Use one font family across the document.",
   "typography.body_font_size_consistency": "Normalize body copy to one 10-12pt size.",
   "typography.no_unauthorized_inline_emphasis": "Remove bold or italic emphasis that is not part of the target visual hierarchy.",
@@ -114,12 +119,14 @@ const fixGuidance = {
 
 function setSelectedFile(file) {
   if (!file) {
+    selectedFile = null;
     fileTitle.textContent = "Choose a resume file";
     fileDetail.textContent = "or drop a .docx here";
     submitButton.disabled = true;
     return;
   }
 
+  selectedFile = file;
   fileTitle.textContent = file.name;
   fileDetail.textContent = `${formatBytes(file.size)} selected`;
   submitButton.disabled = !file.name.toLowerCase().endsWith(".docx");
@@ -136,7 +143,7 @@ function formatBytes(bytes) {
 }
 
 function setLoading(isLoading) {
-  submitButton.disabled = isLoading || !fileInput.files.length;
+  submitButton.disabled = isLoading || !selectedFile;
   submitButton.textContent = isLoading ? "Auditing document..." : "Run format audit";
   statusLine.textContent = isLoading
     ? "Reading DOCX structure, adding Word comments, and preparing the preview."
@@ -466,9 +473,7 @@ function shortIssueLabel(label) {
     .replace("No manual alignment spaces", "Manual spaces")
     .replace("Dual address in header", "Header address")
     .replace("Name centered on top line", "Name center")
-    .replace("Bullet indent consistency", "Bullet indent")
-    .replace("No nested bullets", "Nested bullet")
-    .replace("Bullet length risk", "Line length");
+    .replace("First-level bullet indent", "Bullet indent");
 }
 
 function renderEvidenceMarkup(text, label = "") {
@@ -515,7 +520,24 @@ function escapeHtml(value) {
 }
 
 fileInput.addEventListener("change", () => {
-  setSelectedFile(fileInput.files[0]);
+  setSelectedFile(fileInput.files[0] || null);
+});
+
+fileInput.addEventListener("click", () => {
+  fileInput.value = "";
+});
+
+["dragenter", "dragover", "drop"].forEach((eventName) => {
+  document.addEventListener(eventName, (event) => {
+    if (event.dataTransfer?.types?.includes("Files")) {
+      event.preventDefault();
+    }
+  });
+});
+
+dropzone.addEventListener("dragenter", (event) => {
+  event.preventDefault();
+  dropzone.classList.add("is-dragging");
 });
 
 dropzone.addEventListener("dragover", (event) => {
@@ -523,26 +545,44 @@ dropzone.addEventListener("dragover", (event) => {
   dropzone.classList.add("is-dragging");
 });
 
-dropzone.addEventListener("dragleave", () => {
+dropzone.addEventListener("dragleave", (event) => {
+  if (event.relatedTarget && dropzone.contains(event.relatedTarget)) return;
   dropzone.classList.remove("is-dragging");
 });
 
 dropzone.addEventListener("drop", (event) => {
   event.preventDefault();
   dropzone.classList.remove("is-dragging");
-  const [file] = event.dataTransfer.files;
-  if (!file) return;
+  const files = [...event.dataTransfer.files];
+  const file = files.find((item) => item.name.toLowerCase().endsWith(".docx")) || files[0];
+  if (!file) {
+    setSelectedFile(null);
+    statusLine.textContent = "Drop a DOCX file to run a format audit.";
+    return;
+  }
 
-  const transfer = new DataTransfer();
-  transfer.items.add(file);
-  fileInput.files = transfer.files;
   setSelectedFile(file);
+  try {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInput.files = transfer.files;
+  } catch {
+    // Some browsers block assigning dropped files back to the input.
+    // The app uses selectedFile above, so the upload still works.
+  }
 });
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const file = fileInput.files[0];
-  if (!file) return;
+  const file = selectedFile || fileInput.files[0];
+  if (!file) {
+    statusLine.textContent = "Choose or drop a DOCX file first.";
+    return;
+  }
+  if (!file.name.toLowerCase().endsWith(".docx")) {
+    statusLine.textContent = "Only DOCX files are supported in this draft checker.";
+    return;
+  }
 
   pendingViewerWindow = window.open("about:blank", "_blank");
   if (pendingViewerWindow) {

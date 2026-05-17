@@ -159,6 +159,7 @@ h2 {
 
 .scope-panel,
 .upload-card,
+.template-card,
 .result-card,
 .panel {
   border: 1px solid var(--border);
@@ -196,15 +197,36 @@ h2 {
 }
 
 .upload-card,
+.template-card,
 .result-card,
 .panel {
   padding: 22px;
 }
 
 .upload-copy p,
+.template-card p,
 .result-card p {
   margin-top: 8px;
   color: var(--muted);
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  border-color: rgba(183, 160, 106, 0.34);
+  background: linear-gradient(145deg, rgba(23, 25, 29, 0.95), rgba(16, 18, 22, 0.95));
+}
+
+.template-card h2 {
+  margin-top: 6px;
+  font-size: 24px;
+}
+
+.template-download {
+  align-self: flex-start;
+  text-decoration: none;
 }
 
 .dropzone {

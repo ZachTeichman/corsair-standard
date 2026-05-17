@@ -18,44 +18,256 @@
       "max": 1.0
     },
     "right_tab_position": "page_width_minus_left_and_right_margins",
-    "max_single_line_bullet_chars": 140,
     "default_bullet_indent_twips": {
       "left": 720,
       "hanging": 360
     }
   },
   "rules": [
-    { "id": "document.margin_range", "severity": "major", "points": 4, "fixable": true },
-    { "id": "layout.no_tables", "severity": "critical", "points": 10, "fixable": false },
-    { "id": "layout.no_textboxes", "severity": "critical", "points": 10, "fixable": false },
-    { "id": "header.name_centered_top_line", "severity": "critical", "points": 5, "fixable": true },
-    { "id": "header.dual_address", "severity": "critical", "points": 10, "fixable": false },
-    { "id": "header.contact_single_row", "severity": "major", "points": 5, "fixable": true },
-    { "id": "section.corsair_structure_detected", "severity": "critical", "points": 10, "fixable": false },
-    { "id": "section.required_presence", "severity": "critical", "points": 10, "fixable": false },
-    { "id": "section.order", "severity": "major", "points": 4, "fixable": false },
-    { "id": "section.labels_all_caps", "severity": "critical", "points": 5, "fixable": true },
-    { "id": "section.headers_bold", "severity": "major", "points": 5, "fixable": true },
-    { "id": "section.divider_rule", "severity": "major", "points": 5, "fixable": true },
-    { "id": "entry.date_right_tab", "severity": "major", "points": 5, "fixable": true },
-    { "id": "entry.organization_bold", "severity": "major", "points": 5, "fixable": true },
-    { "id": "entry.role_italic", "severity": "major", "points": 5, "fixable": true },
-    { "id": "entry.location_present", "severity": "minor", "points": 1, "fixable": false },
-    { "id": "paragraph.no_consecutive_blank_lines", "severity": "minor", "points": 1, "fixable": true },
-    { "id": "paragraph.no_leading_spaces", "severity": "major", "points": 4, "fixable": true },
-    { "id": "paragraph.no_manual_alignment_spaces", "severity": "major", "points": 4, "fixable": true },
-    { "id": "paragraph.tab_space_alignment_hacks", "severity": "major", "points": 6, "fixable": true },
-    { "id": "paragraph.excessive_alignment_tabs", "severity": "major", "points": 4, "fixable": true },
-    { "id": "paragraph.tabs_require_defined_stops", "severity": "major", "points": 4, "fixable": true },
-    { "id": "paragraph.right_tab_consistency", "severity": "minor", "points": 1, "fixable": true },
-    { "id": "paragraph.body_alignment_consistency", "severity": "minor", "points": 1, "fixable": true },
-    { "id": "header.contact_spacing_hack", "severity": "major", "points": 6, "fixable": true },
-    { "id": "entry.date_alignment_spacing_hack", "severity": "major", "points": 6, "fixable": true },
-    { "id": "bullet.indent_consistency", "severity": "major", "points": 4, "fixable": true },
-    { "id": "bullet.no_nested_bullets", "severity": "critical", "points": 5, "fixable": true },
-    { "id": "bullet.single_line_length", "severity": "minor", "points": 1, "fixable": false },
-    { "id": "typography.single_font_family", "severity": "critical", "points": 5, "fixable": true },
-    { "id": "typography.body_font_size_consistency", "severity": "major", "points": 5, "fixable": true },
-    { "id": "typography.no_unauthorized_inline_emphasis", "severity": "minor", "points": 1, "fixable": true }
+    {
+      "id": "document.margin_range",
+      "severity": "major",
+      "points": 5,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "layout.no_tables",
+      "severity": "critical",
+      "points": 10,
+      "fixable": false,
+      "category": "structural"
+    },
+    {
+      "id": "layout.no_textboxes",
+      "severity": "critical",
+      "points": 10,
+      "fixable": false,
+      "category": "structural"
+    },
+    {
+      "id": "header.name_centered_top_line",
+      "severity": "critical",
+      "points": 9,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "header.dual_address",
+      "severity": "critical",
+      "points": 7,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "header.contact_single_row",
+      "severity": "major",
+      "points": 5,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "section.corsair_structure_detected",
+      "severity": "critical",
+      "points": 10,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "section.required_presence",
+      "severity": "critical",
+      "points": 9,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "section.order",
+      "severity": "major",
+      "points": 5,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "section.label_spelling",
+      "severity": "critical",
+      "points": 10,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "section.labels_all_caps",
+      "severity": "critical",
+      "points": 8,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "section.headers_bold",
+      "severity": "major",
+      "points": 8,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "section.divider_rule",
+      "severity": "major",
+      "points": 8,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "section.reverse_chronological_order",
+      "severity": "major",
+      "points": 6,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "entry.date_right_tab",
+      "severity": "major",
+      "points": 4,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "entry.date_range_en_dash",
+      "severity": "minor",
+      "points": 4,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "entry.date_range_valid",
+      "severity": "major",
+      "points": 7,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "entry.organization_bold",
+      "severity": "major",
+      "points": 8,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "entry.role_italic",
+      "severity": "major",
+      "points": 8,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "entry.location_present",
+      "severity": "minor",
+      "points": 4,
+      "fixable": false,
+      "category": "visual"
+    },
+    {
+      "id": "paragraph.no_consecutive_blank_lines",
+      "severity": "minor",
+      "points": 3,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "paragraph.no_leading_spaces",
+      "severity": "major",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.no_manual_alignment_spaces",
+      "severity": "major",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.tab_space_alignment_hacks",
+      "severity": "major",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.excessive_alignment_tabs",
+      "severity": "major",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.tabs_require_defined_stops",
+      "severity": "major",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.right_tab_consistency",
+      "severity": "minor",
+      "points": 2,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "paragraph.body_alignment_consistency",
+      "severity": "minor",
+      "points": 2,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "header.contact_spacing_hack",
+      "severity": "major",
+      "points": 3,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "entry.date_alignment_spacing_hack",
+      "severity": "major",
+      "points": 3,
+      "fixable": true,
+      "category": "structural"
+    },
+    {
+      "id": "bullet.indent_consistency",
+      "severity": "major",
+      "points": 5,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "typography.single_font_family",
+      "severity": "critical",
+      "points": 10,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "typography.body_font_size_consistency",
+      "severity": "major",
+      "points": 6,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "typography.no_unauthorized_inline_emphasis",
+      "severity": "minor",
+      "points": 3,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
+      "id": "document.one_page_rendered",
+      "severity": "critical",
+      "points": 10,
+      "category": "visual",
+      "fixable": false
+    }
   ]
 }
