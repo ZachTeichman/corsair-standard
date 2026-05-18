@@ -12,6 +12,17 @@ const resultCopy = document.querySelector("#result-copy");
 const violationList = document.querySelector("#violation-list");
 const violationPill = document.querySelector("#violation-pill");
 const resumePage = document.querySelector("#resume-page");
+const shaderCanvas = document.querySelector("#shader-canvas");
+const viewerOpenLink = document.querySelector("#viewer-open-link");
+const sidebarIssueCount = document.querySelector("#sidebar-issue-count");
+const allIssueCount = document.querySelector("#all-issue-count");
+const criticalTabCount = document.querySelector("#critical-tab-count");
+const majorTabCount = document.querySelector("#major-tab-count");
+const minorTabCount = document.querySelector("#minor-tab-count");
+const visualScoreEl = document.querySelector("#visual-score");
+const structureScoreEl = document.querySelector("#structure-score");
+const themeDark = document.querySelector("#theme-dark");
+const themeLight = document.querySelector("#theme-light");
 const modeTabs = document.querySelectorAll(".mode-tab");
 const views = document.querySelectorAll(".view");
 const batchInput = document.querySelector("#batch-files");
@@ -33,7 +44,6 @@ const HISTORY_STORAGE_KEY = "corsair.auditHistory.v1";
 let auditHistory = loadAuditHistory();
 let activeFilter = "all";
 let currentPayload = null;
-let pendingViewerWindow = null;
 let selectedFile = null;
 
 const countEls = {
@@ -42,6 +52,75 @@ const countEls = {
   minor: document.querySelector("#minor-count"),
   penalty: document.querySelector("#penalty-count"),
 };
+
+const shaderSource = `#version 300 es
+precision highp float;
+out vec4 O;
+uniform vec2 resolution;
+uniform float time;
+uniform vec2 pointer;
+#define FC gl_FragCoord.xy
+#define T time
+#define R resolution
+#define MN min(R.x,R.y)
+float rnd(vec2 p){
+  p=fract(p*vec2(12.9898,78.233));
+  p+=dot(p,p+34.56);
+  return fract(p.x*p.y);
+}
+float noise(vec2 p){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.-2.*f);
+  float a=rnd(i), b=rnd(i+vec2(1,0)), c=rnd(i+vec2(0,1)), d=rnd(i+1.);
+  return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+}
+float fbm(vec2 p){
+  float t=.0, a=1.;
+  mat2 m=mat2(1.,-.5,.2,1.2);
+  for(int i=0;i<5;i++){
+    t+=a*noise(p);
+    p*=2.*m;
+    a*=.5;
+  }
+  return t;
+}
+float clouds(vec2 p){
+  float d=1., t=.0;
+  for(float i=.0;i<3.;i++){
+    float a=d*fbm(i*10.+p.x*.2+.2*(1.+i)*p.y+d+i*i+p);
+    t=mix(t,d,a);
+    d=a;
+    p*=2./(i+1.);
+  }
+  return t;
+}
+void main(){
+  vec2 uv=(FC-.5*R)/MN;
+  vec2 st=uv*vec2(2.2,1.);
+  vec2 pnt=(pointer-.5*R)/MN;
+  vec3 col=vec3(.015,.018,.016);
+  float bg=clouds(vec2(st.x+T*.08,-st.y+T*.025));
+  float pulse=.5+.5*sin(T*.35);
+  uv+=pnt*.045;
+  for(float i=1.;i<12.;i++){
+    uv+=.09*cos(i*vec2(.09+.01*i,.74)+i*i+T*.22+.12*uv.x);
+    vec2 p=uv;
+    float d=length(p);
+    vec3 bronze=vec3(.95,.55,.18);
+    vec3 ember=vec3(.45,.18,.08);
+    col+=.0019/d*(mix(ember,bronze,.45+.35*sin(i+T*.2)));
+    float b=noise(i+p+bg*1.731);
+    col+=.0022*b/length(max(p,vec2(b*p.x*.018,p.y)));
+    col=mix(col,vec3(bg*.18,bg*.11,bg*.045),smoothstep(.15,1.2,d));
+  }
+  col+=vec3(.12,.075,.025)*bg*(.7+.3*pulse);
+  col*=1.0-smoothstep(.35,1.25,length(st))*.55;
+  O=vec4(col,1.);
+}`;
+
+const vertexSource = `#version 300 es
+precision highp float;
+in vec2 position;
+void main(){gl_Position=vec4(position,0.,1.);}`;
 
 const ruleLabels = {
   "document.margin_range": "Margins in range",
@@ -177,6 +256,8 @@ function renderResult(payload) {
   resultTitle.textContent = payload.source.filename;
   const visualScore = result.visual_compliance_score ?? result.score;
   const structuralScore = result.structural_quality_score ?? result.score;
+  visualScoreEl.textContent = String(visualScore);
+  structureScoreEl.textContent = String(structuralScore);
   resultCopy.textContent = violations.length
     ? `${violations.length} formatting issue${violations.length === 1 ? "" : "s"} found. Visual ${visualScore}; structure ${structuralScore}; overall ${result.score}.`
     : `No draft formatting violations found. Visual ${visualScore}; structure ${structuralScore}; overall ${result.score}.`;
@@ -185,8 +266,22 @@ function renderResult(payload) {
   countEls.major.textContent = counts.major;
   countEls.minor.textContent = counts.minor;
   countEls.penalty.textContent = result.total_penalty;
+  sidebarIssueCount.textContent = String(violations.length);
+  allIssueCount.textContent = String(violations.length);
+  criticalTabCount.textContent = String(counts.critical);
+  majorTabCount.textContent = String(counts.major);
+  minorTabCount.textContent = String(counts.minor);
 
   violationPill.textContent = violations.length ? `${violations.length} found` : "Clean";
+  if (payload.document_links?.office_viewer_open) {
+    viewerOpenLink.href = payload.document_links.office_viewer_open;
+    viewerOpenLink.target = "_blank";
+    viewerOpenLink.rel = "noreferrer";
+  } else {
+    viewerOpenLink.href = "#resume-page";
+    viewerOpenLink.removeAttribute("target");
+    viewerOpenLink.removeAttribute("rel");
+  }
   renderViolations(violations);
   renderDocumentPreview(payload, violations);
   statusLine.textContent = "Audit complete.";
@@ -281,6 +376,7 @@ function renderViolations(violations) {
       const moreMarkup = moreCount
         ? `<p class="more-evidence">+${moreCount} more location${moreCount === 1 ? "" : "s"} flagged</p>`
         : "";
+      const viewerUrl = currentPayload?.document_links?.office_viewer_open || currentPayload?.document_links?.annotated_docx || "#resume-page";
 
       return `
         <article class="violation ${escapeHtml(violation.severity)}" data-issue-index="${index}">
@@ -294,6 +390,9 @@ function renderViolations(violations) {
           </div>
           ${evidenceMarkup}
           ${moreMarkup}
+          <div class="violation-actions">
+            <a href="${escapeHtml(viewerUrl)}" target="_blank" rel="noreferrer">Open in Viewer</a>
+          </div>
         </article>
       `;
     })
@@ -376,16 +475,29 @@ function previewText(text) {
 
 function renderDocumentPreview(payload, violations) {
   const officeViewerOpen = payload.document_links?.office_viewer_open;
+  const officeViewerEmbed = payload.document_links?.office_viewer_embed;
+  const annotatedDocx = payload.document_links?.annotated_docx;
   const issueCount = violations.length;
 
   resumePage.innerHTML = `
-    ${officeViewerOpen ? `
+    ${officeViewerEmbed ? `
+      <iframe
+        class="office-frame"
+        title="Annotated Microsoft Word preview"
+        src="${escapeHtml(officeViewerEmbed)}"
+        loading="lazy"
+        allowfullscreen>
+      </iframe>
+      <div class="preview-fallback">
+        <span>${issueCount ? `${issueCount} Word comment${issueCount === 1 ? "" : "s"} added` : "Clean DOCX copy ready"}</span>
+        <a href="${escapeHtml(officeViewerOpen || annotatedDocx)}" target="_blank" rel="noreferrer">Open full viewer</a>
+      </div>
+    ` : officeViewerOpen ? `
       <div class="office-preview-redirect">
         <span class="section-kicker">Annotated Word preview</span>
-        <h3>Opening Microsoft Viewer</h3>
+        <h3>Viewer ready</h3>
         <p>${issueCount ? `${issueCount} Corsair Standard comment${issueCount === 1 ? "" : "s"} added to a copied DOCX.` : "Clean DOCX copy ready."}</p>
-        <p class="muted-note">The annotated preview opens in a separate tab so this audit stays available.</p>
-        <a class="docx-button" href="${escapeHtml(officeViewerOpen)}">Open annotated preview</a>
+        <a class="docx-button" href="${escapeHtml(officeViewerOpen)}" target="_blank" rel="noreferrer">Open annotated preview</a>
       </div>
     ` : `
       <div class="preview-empty">
@@ -586,35 +698,16 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  pendingViewerWindow = window.open("about:blank", "_blank");
-  if (pendingViewerWindow) {
-    pendingViewerWindow.document.write(
-      "<p style='font-family: system-ui, sans-serif; padding: 24px;'>Preparing annotated Microsoft Word preview...</p>"
-    );
-  }
-
   setLoading(true);
   try {
     const payload = await analyzeFile(file);
     rememberAudit(payload);
     renderResult(payload);
-    const viewerUrl = payload.document_links?.office_viewer_open;
-    if (viewerUrl) {
-      if (pendingViewerWindow) {
-        pendingViewerWindow.location.href = viewerUrl;
-        pendingViewerWindow.focus();
-        statusLine.textContent = "Audit complete. Annotated Word preview opened in a separate tab.";
-      } else {
-        statusLine.textContent = "Audit complete. Use the preview fallback link to open the annotated Word document.";
-      }
-    }
   } catch (error) {
-    if (pendingViewerWindow) pendingViewerWindow.close();
     statusLine.textContent = error.message;
     resultTitle.textContent = "Audit failed";
     resultCopy.textContent = "The backend returned an error before completing the format check.";
   } finally {
-    pendingViewerWindow = null;
     setLoading(false);
   }
 });
@@ -688,6 +781,18 @@ exportCsvButton.addEventListener("click", () => {
   link.download = "corsair-format-audit.csv";
   link.click();
   URL.revokeObjectURL(url);
+});
+
+themeDark.addEventListener("click", () => {
+  document.body.classList.remove("theme-light");
+  themeDark.classList.add("is-active");
+  themeLight.classList.remove("is-active");
+});
+
+themeLight.addEventListener("click", () => {
+  document.body.classList.add("theme-light");
+  themeLight.classList.add("is-active");
+  themeDark.classList.remove("is-active");
 });
 
 function setReviewerBusy(isBusy, message = "") {
@@ -781,4 +886,80 @@ function csvCell(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+function compileShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.warn(gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+
+function initLandingShader() {
+  if (!shaderCanvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const gl = shaderCanvas.getContext("webgl2", { antialias: false, alpha: false });
+  if (!gl) return;
+
+  const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
+  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, shaderSource);
+  if (!vertex || !fragment) return;
+
+  const program = gl.createProgram();
+  if (!program) return;
+  gl.attachShader(program, vertex);
+  gl.attachShader(program, fragment);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.warn(gl.getProgramInfoLog(program));
+    return;
+  }
+
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, 1, -1, -1, 1, 1, 1, -1]), gl.STATIC_DRAW);
+
+  const position = gl.getAttribLocation(program, "position");
+  const resolution = gl.getUniformLocation(program, "resolution");
+  const time = gl.getUniformLocation(program, "time");
+  const pointer = gl.getUniformLocation(program, "pointer");
+  const pointerState = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
+  let animationFrame = 0;
+
+  function resizeShader() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    shaderCanvas.width = Math.floor(shaderCanvas.clientWidth * dpr);
+    shaderCanvas.height = Math.floor(shaderCanvas.clientHeight * dpr);
+    gl.viewport(0, 0, shaderCanvas.width, shaderCanvas.height);
+  }
+
+  function renderShader(now) {
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(resolution, shaderCanvas.width, shaderCanvas.height);
+    gl.uniform1f(time, now * 0.001);
+    gl.uniform2f(pointer, pointerState.x, shaderCanvas.height - pointerState.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    animationFrame = requestAnimationFrame(renderShader);
+  }
+
+  shaderCanvas.addEventListener("pointermove", (event) => {
+    pointerState.x = event.clientX;
+    pointerState.y = event.clientY;
+  });
+  window.addEventListener("resize", resizeShader);
+  resizeShader();
+  animationFrame = requestAnimationFrame(renderShader);
+
+  window.addEventListener("pagehide", () => {
+    cancelAnimationFrame(animationFrame);
+  }, { once: true });
+}
+
+initLandingShader();
 renderReviewerDashboard();

@@ -12,7 +12,7 @@ It analyzes formatting compliance only — margins, tab stops, spacing, font con
 
 1. Upload a `.docx` resume
 2. The engine parses the raw XML and runs ~30 formatting compliance rules
-3. You get a compliance score, categorized issue list, and fix guidance
+3. You get a compliance score, categorized issue list, and plain-English guidance
 4. An annotated copy of the DOCX is generated with Word-native comments at each violation
 5. Open the annotated copy in Microsoft Word or Office Online to see every issue flagged in context
 
@@ -111,18 +111,18 @@ corsair/
   analyzer.py        # Core rule engine — reads DOCX XML, runs compliance checks
   docx_parser.py     # Parses word/document.xml into structured Python models
   annotator.py       # Injects Word-native comments into DOCX at violation locations
-  patcher.py         # Surgical XML patcher for safe auto-fixes (experimental)
-  compiler.py        # Full canonical reformatter (experimental)
+  patcher.py         # Archived experimental patcher; not part of MVP flow
+  compiler.py        # Archived experimental reformatter; not part of MVP flow
   rubric.py          # Rule definitions, point values, and scoring weights
   normalize.py       # Text normalization utilities
   render_validation.py  # Page count validation via Word/LibreOffice (macOS only)
 
 web/
   index.html         # Main UI
-  app.js             # Frontend logic — upload, issue display, session management
+  app.js             # Frontend logic — upload, issue display, Office Viewer preview
   style.css          # Styles
 
-server.py            # FastAPI server — upload, analyze, session, annotate endpoints
+server.py            # FastAPI server — upload, analyze, annotate, template endpoints
 var/uploads/         # Uploaded and working DOCX files (gitignored)
 templates/           # Canonical Corsair DOCX template
 rubrics/             # Rubric JSON definitions
@@ -193,7 +193,7 @@ Compliance score is weighted 65% visual / 35% structural:
 - Style inheritance from `word/styles.xml` is not yet fully resolved — some bold/italic/font detections may produce false positives on documents that apply formatting through named styles rather than inline runs
 - Page count validation requires Microsoft Word on macOS or LibreOffice on Linux
 - Office Viewer preview requires a public URL (Cloudflare tunnel for local dev)
-- The auto-fix patcher is experimental — only a small set of safe fixes are enabled
+- Auto-fix is intentionally out of scope for the MVP. The app should explain and annotate issues, not mutate resume content automatically.
 
 ---
 

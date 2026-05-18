@@ -3,217 +3,320 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Corsair Resume Format Compliance</title>
+    <title>Corsair Standard</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand-lockup">
-        <span class="brand-mark">C</span>
-        <span>Corsair<br />Standard</span>
+    <section class="landing-hero" id="home" aria-labelledby="landing-title">
+      <canvas class="shader-canvas" id="shader-canvas" aria-hidden="true"></canvas>
+      <div class="landing-vignette" aria-hidden="true"></div>
+      <div class="landing-nav">
+        <div class="brand-lockup landing-brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M12 2.8 20 6v5.4c0 4.8-3.2 8.7-8 9.9-4.8-1.2-8-5.1-8-9.9V6l8-3.2Z" />
+              <path d="M8 8.5 12 6l4 2.5M8 12l4 2.5 4-2.5" />
+            </svg>
+          </span>
+          <span>Corsair<br />Standard</span>
+        </div>
+        <a class="landing-nav-link" href="#dashboard-shell">Open platform</a>
       </div>
-      <nav class="mode-tabs" aria-label="Application modes">
-        <button class="mode-tab is-active" type="button" data-view="student-view">Student Mode</button>
-        <button class="mode-tab" type="button" data-view="reviewer-view">Reviewer Dashboard</button>
-      </nav>
-    </header>
 
-    <main class="shell">
-      <div class="view is-active" id="student-view">
-        <section class="intro" aria-labelledby="page-title">
-          <div>
-            <p class="eyebrow">Corsair format checker</p>
-            <h1 id="page-title">Draft resume compliance audit</h1>
-            <p class="lede">
-              Upload a DOCX resume to run deterministic formatting checks for spacing,
-              alignment, margins, typography, bullets, section structure, and date alignment.
-            </p>
-          </div>
-          <div class="scope-panel" aria-label="Product scope">
+      <div class="landing-content">
+        <div class="trust-badge">
+          <span class="badge-dot" aria-hidden="true"></span>
+          Deterministic DOCX compliance for finance recruiting resumes
+        </div>
+        <h1 id="landing-title">
+          Format with precision.<br />
+          Submit with confidence.
+        </h1>
+        <p>
+          Corsair Standard audits Word resumes for the invisible formatting decisions
+          that make documents stable: tab stops, spacing, margins, dates, bullets,
+          section hierarchy, and typography.
+        </p>
+        <div class="landing-actions">
+          <a class="landing-primary" href="#dashboard-shell">Run compliance audit</a>
+          <a class="landing-secondary" href="/api/template/clean-docx">Download clean template</a>
+        </div>
+      </div>
+
+      <div class="landing-proof" aria-label="Platform capabilities">
+        <article>
+          <span>01</span>
+          <strong>Word-native comments</strong>
+          <p>Issues are written into an annotated DOCX for Microsoft Word and Office Viewer.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <strong>Visual + structural scoring</strong>
+          <p>Separate scores distinguish visible formatting problems from fragile construction.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <strong>No resume quality scoring</strong>
+          <p>The platform checks formatting compliance only, not candidate strength.</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="app-frame" id="dashboard-shell">
+      <aside class="app-sidebar" aria-label="Corsair navigation">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M12 2.8 20 6v5.4c0 4.8-3.2 8.7-8 9.9-4.8-1.2-8-5.1-8-9.9V6l8-3.2Z" />
+              <path d="M8 8.5 12 6l4 2.5M8 12l4 2.5 4-2.5" />
+            </svg>
+          </span>
+          <span>Corsair<br />Standard</span>
+        </div>
+
+        <nav class="mode-tabs" aria-label="Application modes">
+          <button class="mode-tab is-active" type="button" data-view="student-view">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Overview</span>
+          </button>
+          <button class="mode-tab" type="button" data-view="reviewer-view">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>Documents</span>
+          </button>
+          <a class="side-link" href="#violation-list">
+            <span class="nav-icon" aria-hidden="true">◇</span>
+            <span>Issues</span>
+            <small id="sidebar-issue-count">0</small>
+          </a>
+          <a class="side-link" href="#resume-page">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>Structure</span>
+            <small>soon</small>
+          </a>
+          <a class="side-link" href="/api/template/clean-docx">
+            <span class="nav-icon" aria-hidden="true">↓</span>
+            <span>Template</span>
+          </a>
+          <button class="side-link side-link-button" type="button" disabled>
+            <span class="nav-icon" aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="profile-card">
+            <span class="profile-mark">CS</span>
             <div>
-              <span class="scope-label">Format only</span>
-              <strong>No candidate scoring</strong>
+              <strong>Corsair Review</strong>
+              <small>Formatting compliance</small>
             </div>
-            <p>
-              This tool does not judge resume quality, extract skills, match jobs, or rewrite
-              bullets. It audits measurable document structure.
-            </p>
           </div>
-        </section>
+          <div class="theme-switch" aria-label="Theme selector">
+            <button class="theme-option is-active" id="theme-dark" type="button">Dark</button>
+            <button class="theme-option" id="theme-light" type="button">Light</button>
+          </div>
+        </div>
+      </aside>
 
-        <section class="workspace" aria-label="Upload and audit results">
-          <form class="upload-card" id="upload-form">
-            <div class="upload-copy">
-              <span class="section-kicker">Student upload</span>
-              <h2>Check a DOCX resume</h2>
-              <p>
-                Results come from the Python DOCX linter. PDF visual audits are not active yet.
+      <main class="shell">
+        <div class="view is-active" id="student-view">
+          <section class="topbar" aria-labelledby="page-title">
+            <div>
+              <p class="eyebrow">Deterministic DOCX compliance</p>
+              <h1 id="page-title">Good evening, Zach.</h1>
+              <p class="lede">
+                Upload a resume to inspect formatting structure, Word comments, tab stops,
+                spacing, dates, sections, and typography.
               </p>
             </div>
-
-            <label class="dropzone" id="dropzone" for="resume-file">
-              <input id="resume-file" name="file" type="file" accept=".docx" />
-              <span class="file-icon" aria-hidden="true">DOCX</span>
-              <span>
-                <strong id="file-title">Choose a resume file</strong>
-                <small id="file-detail">or drop a .docx here</small>
-              </span>
-            </label>
-
-            <button class="primary-action" id="submit-button" type="submit" disabled>
-              Run format audit
-            </button>
-
-            <p class="status-line" id="status-line" role="status" aria-live="polite">
-              Waiting for a DOCX upload.
-            </p>
-          </form>
-
-          <article class="template-card" aria-label="Clean formatting template">
-            <div>
-              <span class="section-kicker">Clean starting file</span>
-              <h2>Start with the stable DOCX</h2>
-              <p>
-                Use Zach’s clean version with saved tab stops, right-aligned dates,
-                consistent bullet indents, and no spacebar alignment hacks.
-              </p>
+            <div class="top-actions">
+              <a class="secondary-action" href="/api/template/clean-docx">
+                <span aria-hidden="true">↓</span>
+                Download DOCX
+              </a>
+              <a class="primary-action-link" id="viewer-open-link" href="#resume-page">
+                <span aria-hidden="true">◎</span>
+                Open in Viewer
+              </a>
             </div>
-            <a class="secondary-action template-download" href="/api/template/clean-docx">
-              Download clean template
-            </a>
-          </article>
+          </section>
 
-          <aside class="result-card" aria-label="Audit summary">
-            <div class="score-wrap">
-              <div class="score-ring" id="score-ring" style="--score: 0">
-                <span id="score-value">--</span>
-              </div>
-              <div>
-                <span class="section-kicker">Draft compliance</span>
-                <h2 id="result-title">No audit yet</h2>
-                <p id="result-copy">
-                  Upload a document to see score, formatting violations, and evidence snippets.
-                </p>
-              </div>
-            </div>
-
-            <div class="metric-grid">
-              <div>
-                <span id="critical-count">0</span>
-                <small>Critical</small>
-              </div>
-              <div>
-                <span id="major-count">0</span>
-                <small>Major</small>
-              </div>
-              <div>
-                <span id="minor-count">0</span>
-                <small>Minor</small>
-              </div>
-              <div>
-                <span id="penalty-count">0</span>
-                <small>Penalty</small>
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <section class="review-grid">
-          <article class="panel preview-panel">
-            <div class="panel-head">
-              <div>
-                <span class="section-kicker">Preview</span>
-                <h2>DOCX document</h2>
-                <p>Annotated Microsoft Word preview loads automatically after upload.</p>
-              </div>
-              <div class="preview-controls">
-                <span class="pill" id="violation-pill">No file</span>
-              </div>
-            </div>
-
-            <div class="document-stage">
-              <div class="resume-page" id="resume-page" aria-label="Resume preview with formatting highlights">
-                <div class="preview-empty" id="preview-empty">
-                  Upload a DOCX to run structural formatting checks.
+          <section class="student-layout" aria-label="Audit workspace">
+            <div class="dashboard-column">
+              <section class="score-card" aria-label="Compliance score">
+                <div class="score-ring" id="score-ring" style="--score: 0">
+                  <span id="score-value">--</span>
+                  <small>/100</small>
                 </div>
-              </div>
-            </div>
-          </article>
+                <div class="score-narrative">
+                  <span class="section-kicker">Compliance score</span>
+                  <h2 id="result-title">No audit yet</h2>
+                  <p id="result-copy">
+                    Upload a DOCX to see visual and structural formatting compliance.
+                  </p>
+                  <div class="score-submetrics">
+                    <span>Visual <strong id="visual-score">--</strong></span>
+                    <span>Structure <strong id="structure-score">--</strong></span>
+                  </div>
+                </div>
+                <div class="severity-stack">
+                  <div><span class="dot critical"></span><span>Critical</span><strong id="critical-count">0</strong></div>
+                  <div><span class="dot major"></span><span>Major</span><strong id="major-count">0</strong></div>
+                  <div><span class="dot minor"></span><span>Minor</span><strong id="minor-count">0</strong></div>
+                  <div><span class="dot neutral"></span><span>Penalty</span><strong id="penalty-count">0</strong></div>
+                </div>
+              </section>
 
-          <aside class="panel suggestions-panel">
-            <div class="panel-head">
-              <div>
-                <span class="section-kicker">Suggestions</span>
-                <h2>Fix queue</h2>
-              </div>
-            </div>
-            <div class="violation-list" id="violation-list">
-              <div class="empty-state">
-                Suggestions will appear here after upload.
-              </div>
-            </div>
-          </aside>
-        </section>
+              <section class="upload-card" aria-label="Upload resume">
+                <form id="upload-form">
+                  <div class="upload-copy">
+                    <span class="section-kicker">Student upload</span>
+                    <h2>Check a DOCX resume</h2>
+                    <p>
+                      Results come from the Python DOCX analyzer. The preview uses Microsoft’s
+                      Office Viewer when a public tunnel is active.
+                    </p>
+                  </div>
 
-      </div>
+                  <label class="dropzone" id="dropzone" for="resume-file">
+                    <input id="resume-file" name="file" type="file" accept=".docx" />
+                    <span class="file-icon" aria-hidden="true">DOCX</span>
+                    <span>
+                      <strong id="file-title">Choose a resume file</strong>
+                      <small id="file-detail">or drop a .docx here</small>
+                    </span>
+                  </label>
 
-      <section class="view" id="reviewer-view" aria-labelledby="reviewer-title">
-        <div class="dashboard-hero">
-          <div>
-            <p class="eyebrow">Reviewer dashboard</p>
-            <h1 id="reviewer-title">Batch resume audit</h1>
-            <p class="lede">
-              Upload multiple DOCX resumes and compare deterministic format compliance results.
-            </p>
-          </div>
-          <div class="dashboard-actions">
-            <label class="secondary-upload" for="batch-files">
-              Upload resumes
-              <input id="batch-files" type="file" accept=".docx" multiple />
-            </label>
-            <button class="secondary-action" id="export-csv" type="button" disabled>Export CSV</button>
-          </div>
+                  <div class="upload-actions">
+                    <button class="primary-action" id="submit-button" type="submit" disabled>
+                      Run format audit
+                    </button>
+                    <p class="status-line" id="status-line" role="status" aria-live="polite">
+                      Waiting for a DOCX upload.
+                    </p>
+                  </div>
+                </form>
+              </section>
+
+              <section class="issue-console" aria-label="Formatting issues">
+                <div class="console-tabs" aria-label="Issue filters">
+                  <span class="console-tab is-active">All Issues <strong id="all-issue-count">0</strong></span>
+                  <span class="console-tab">Critical <strong id="critical-tab-count">0</strong></span>
+                  <span class="console-tab">Major <strong id="major-tab-count">0</strong></span>
+                  <span class="console-tab">Minor <strong id="minor-tab-count">0</strong></span>
+                </div>
+                <div class="violation-list" id="violation-list">
+                  <div class="empty-state">
+                    Suggestions will appear here after upload.
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="preview-column" aria-label="Resume preview">
+              <article class="preview-panel">
+                <div class="preview-toolbar">
+                  <div>
+                    <span class="section-kicker">Preview</span>
+                    <h2>DOCX document</h2>
+                  </div>
+                  <div class="preview-controls">
+                    <span class="pill" id="violation-pill">No file</span>
+                  </div>
+                </div>
+
+                <div class="document-stage">
+                  <div class="resume-page" id="resume-page" aria-label="Resume preview with Word comments">
+                    <div class="preview-empty" id="preview-empty">
+                      Upload a DOCX to open the annotated Office preview here.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="structure-strip">
+                  <div>
+                    <strong>Structure view is off</strong>
+                    <span>Future mode for tabs, paragraph marks, spacing, and alignment rhythm.</span>
+                  </div>
+                  <button class="structure-toggle" type="button" disabled>Show Structure</button>
+                </div>
+              </article>
+
+              <article class="template-card" aria-label="Clean formatting template">
+                <div>
+                  <span class="section-kicker">Clean starting file</span>
+                  <h2>Use the stable Corsair template</h2>
+                  <p>
+                    Start from the DOCX with saved tab stops, right-aligned dates,
+                    consistent bullets, and no spacebar alignment hacks.
+                  </p>
+                </div>
+                <a class="secondary-action template-download" href="/api/template/clean-docx">
+                  Download clean template
+                </a>
+              </article>
+            </aside>
+          </section>
         </div>
 
-        <div class="dashboard-metrics">
-          <article>
-            <span>Total files</span>
-            <strong id="dash-total">0</strong>
-          </article>
-          <article>
-            <span>Avg score</span>
-            <strong id="dash-average">--</strong>
-          </article>
-          <article>
-            <span>Pass rate</span>
-            <strong id="dash-pass-rate">--</strong>
-          </article>
-          <article>
-            <span>Need review</span>
-            <strong id="dash-review">0</strong>
-          </article>
-        </div>
-
-        <section class="dashboard-table-panel">
-          <div class="filter-tabs" role="tablist" aria-label="Applicant filters">
-            <button class="filter-tab is-active" type="button" data-filter="all">All <span id="filter-all">(0)</span></button>
-            <button class="filter-tab" type="button" data-filter="pass">Pass <span id="filter-pass">(0)</span></button>
-            <button class="filter-tab" type="button" data-filter="review">Review <span id="filter-review">(0)</span></button>
-            <button class="filter-tab" type="button" data-filter="fail">Fail <span id="filter-fail">(0)</span></button>
-          </div>
-
-          <div class="applicant-table" id="applicant-table">
-            <div class="table-header">
-              <span>Applicant file</span>
-              <span>Score</span>
-              <span>Issues</span>
-              <span>Status</span>
+        <section class="view reviewer-shell" id="reviewer-view" aria-labelledby="reviewer-title">
+          <div class="dashboard-hero">
+            <div>
+              <p class="eyebrow">Reviewer dashboard</p>
+              <h1 id="reviewer-title">Batch resume audit</h1>
+              <p class="lede">
+                Upload multiple DOCX resumes and compare deterministic format compliance results.
+              </p>
             </div>
-            <div class="empty-state">No reviewer uploads yet. Add DOCX files to build the batch table.</div>
+            <div class="dashboard-actions">
+              <label class="secondary-upload" for="batch-files">
+                Upload resumes
+                <input id="batch-files" type="file" accept=".docx" multiple />
+              </label>
+              <button class="secondary-action" id="export-csv" type="button" disabled>Export CSV</button>
+            </div>
           </div>
+
+          <div class="dashboard-metrics">
+            <article>
+              <span>Total files</span>
+              <strong id="dash-total">0</strong>
+            </article>
+            <article>
+              <span>Avg score</span>
+              <strong id="dash-average">--</strong>
+            </article>
+            <article>
+              <span>Pass rate</span>
+              <strong id="dash-pass-rate">--</strong>
+            </article>
+            <article>
+              <span>Need review</span>
+              <strong id="dash-review">0</strong>
+            </article>
+          </div>
+
+          <section class="dashboard-table-panel">
+            <div class="filter-tabs" role="tablist" aria-label="Applicant filters">
+              <button class="filter-tab is-active" type="button" data-filter="all">All <span id="filter-all">(0)</span></button>
+              <button class="filter-tab" type="button" data-filter="pass">Pass <span id="filter-pass">(0)</span></button>
+              <button class="filter-tab" type="button" data-filter="review">Review <span id="filter-review">(0)</span></button>
+              <button class="filter-tab" type="button" data-filter="fail">Fail <span id="filter-fail">(0)</span></button>
+            </div>
+
+            <div class="applicant-table" id="applicant-table">
+              <div class="table-header">
+                <span>Applicant file</span>
+                <span>Score</span>
+                <span>Issues</span>
+                <span>Status</span>
+              </div>
+              <div class="empty-state">No reviewer uploads yet. Add DOCX files to build the batch table.</div>
+            </div>
+          </section>
         </section>
-      </section>
-    </main>
+      </main>
+    </div>
 
     <script src="/app.js"></script>
   </body>

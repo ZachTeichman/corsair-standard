@@ -1,0 +1,56 @@
+import { Download, ExternalLink, Eye } from "lucide-react";
+import { apiHref } from "../lib/api";
+import type { AnalyzePayload } from "../types/api";
+import { LinkButton } from "./ui/Button";
+import { Card } from "./ui/Card";
+
+interface OfficePreviewProps {
+  payload: AnalyzePayload | null;
+}
+
+export function OfficePreview({ payload }: OfficePreviewProps) {
+  const embed = payload?.document_links?.office_viewer_embed;
+  const open = payload?.document_links?.office_viewer_open;
+  const annotated = payload?.document_links?.annotated_docx;
+  const filename = payload?.source.filename ?? "Annotated DOCX";
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-corsair-bronze">Word preview</p>
+          <h2 className="mt-1 truncate text-lg font-semibold text-white light:text-corsair-ink">{filename}</h2>
+        </div>
+        <div className="flex gap-2">
+          <LinkButton href={apiHref(annotated)} className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+            <Download className="h-4 w-4" /> DOCX
+          </LinkButton>
+          <LinkButton href={apiHref(open)} target="_blank" rel="noreferrer" variant="primary" className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+            <Eye className="h-4 w-4" /> Open <ExternalLink className="h-3.5 w-3.5" />
+          </LinkButton>
+        </div>
+      </div>
+      <div className="bg-black/35 p-3">
+        {embed ? (
+          <iframe
+            title="Microsoft Office annotated resume preview"
+            className="h-[72vh] min-h-[620px] w-full rounded-xl border border-white/10 bg-white"
+            src={embed}
+          />
+        ) : (
+          <div className="grid h-[620px] place-items-center rounded-xl border border-dashed border-white/10 bg-corsair-black/70 p-8 text-center">
+            <div className="max-w-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-corsair-bronze">Preview pending</p>
+              <h3 className="mt-3 text-3xl font-semibold text-white">Upload a DOCX</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                The high-fidelity preview uses Microsoft Office Viewer when the backend has a public URL.
+                The annotated DOCX still downloads locally without a tunnel.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
