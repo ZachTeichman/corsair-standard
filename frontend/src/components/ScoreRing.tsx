@@ -49,7 +49,7 @@ export function ScoreRing({ payload }: ScoreRingProps) {
         <div className="grid content-center gap-3">
           <Metric label="Visual" value={result?.visual_compliance_score ?? "--"} />
           <Metric label="Structure" value={result?.structural_quality_score ?? "--"} />
-          <div className="mt-2 grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mt-2 grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 light:border-black/10 light:bg-black/[0.035]">
             <Severity icon={<AlertTriangle className="h-4 w-4" />} label="Critical" value={counts.critical} tone="bg-red-400" />
             <Severity label="Major" value={counts.major} tone="bg-amber-400" />
             <Severity label="Minor" value={counts.minor} tone="bg-slate-300" />
@@ -62,7 +62,7 @@ export function ScoreRing({ payload }: ScoreRingProps) {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm">
+    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm light:border-black/10 light:bg-white/80">
       <span className="text-slate-400 light:text-slate-600">{label} score</span>
       <strong className="font-mono text-lg text-white light:text-corsair-ink">{value}</strong>
     </div>

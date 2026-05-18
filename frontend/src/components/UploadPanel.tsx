@@ -41,8 +41,17 @@ export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
           Deterministic Word formatting checks only. No candidate quality scoring, job matching, or ATS language.
         </p>
       </div>
-      <label
-        className="flex cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-corsair-bronze/35 bg-corsair-bronze/[0.045] p-4 transition hover:bg-corsair-bronze/[0.08]"
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-corsair-bronze/35 bg-corsair-bronze/[0.045] p-4 transition hover:bg-corsair-bronze/[0.08] light:bg-corsair-bronze/10"
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         onDrop={(event) => {
           event.preventDefault();
           const dropped = event.dataTransfer.files?.[0];
@@ -58,16 +67,25 @@ export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
           className="hidden"
           type="file"
           accept=".docx"
-          onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+          onClick={(event) => {
+            event.currentTarget.value = "";
+          }}
+          onChange={(event) => {
+            const selected = event.currentTarget.files?.[0] ?? null;
+            setFile(selected);
+            if (selected) {
+              void runAudit(selected);
+            }
+          }}
         />
-        <span className="grid h-14 w-14 place-items-center rounded-xl border border-corsair-bronze/30 bg-black/25 text-corsair-gold">
+        <span className="grid h-14 w-14 place-items-center rounded-xl border border-corsair-bronze/30 bg-black/25 text-corsair-gold light:bg-white/70">
           <FileUp className="h-6 w-6" />
         </span>
         <span className="min-w-0">
           <strong className="block truncate text-white light:text-corsair-ink">{file?.name ?? "Choose or drop a .docx file"}</strong>
-          <small className="text-slate-400">Office Open XML resumes only</small>
+          <small className="text-slate-400 light:text-slate-600">Office Open XML resumes only. Selecting a file starts the audit.</small>
         </span>
-      </label>
+      </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button variant="primary" disabled={!file || loading} onClick={() => void runAudit()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

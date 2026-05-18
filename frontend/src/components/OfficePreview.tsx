@@ -16,7 +16,7 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 light:border-black/10">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-corsair-bronze">Word preview</p>
           <h2 className="mt-1 truncate text-lg font-semibold text-white light:text-corsair-ink">{filename}</h2>
@@ -30,7 +30,7 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
           </LinkButton>
         </div>
       </div>
-      <div className="bg-black/35 p-3">
+      <div className="bg-black/35 p-3 light:bg-corsair-ivory/70">
         {embed ? (
           <iframe
             title="Microsoft Office annotated resume preview"
@@ -38,11 +38,11 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
             src={embed}
           />
         ) : (
-          <div className="grid h-[620px] place-items-center rounded-xl border border-dashed border-white/10 bg-corsair-black/70 p-8 text-center">
+          <div className="grid h-[620px] place-items-center rounded-xl border border-dashed border-white/10 bg-corsair-black/70 p-8 text-center light:border-black/10 light:bg-white/70">
             <div className="max-w-sm">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-corsair-bronze">Preview pending</p>
-              <h3 className="mt-3 text-3xl font-semibold text-white">Upload a DOCX</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
+              <h3 className="mt-3 text-3xl font-semibold text-white light:text-corsair-ink">Upload a DOCX</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
                 The high-fidelity preview uses Microsoft Office Viewer when the backend has a public URL.
                 The annotated DOCX still downloads locally without a tunnel.
               </p>
@@ -53,4 +53,3 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
     </Card>
   );
 }
-
