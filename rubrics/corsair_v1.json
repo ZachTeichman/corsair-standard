@@ -60,6 +60,13 @@
       "category": "visual"
     },
     {
+      "id": "header.address_line_integrity",
+      "severity": "major",
+      "points": 5,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
       "id": "header.contact_single_row",
       "severity": "major",
       "points": 5,

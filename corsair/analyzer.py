@@ -148,10 +148,11 @@ def _paragraph_summary(
     paragraph: ParagraphModel,
     target_ranges: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    space_runs = [len(match.group(0)) for match in re.finditer(r" {2,}", paragraph.text)]
+    evidence_text = paragraph.text.rstrip(" \t")
+    space_runs = [len(match.group(0)) for match in re.finditer(r" {2,}", evidence_text)]
     summary = {
         "index": paragraph.index,
-        "text": paragraph.text[:160].replace("\t", "\\t"),
+        "text": evidence_text[:160].replace("\t", "\\t"),
         "alignment": paragraph.alignment,
         "style_name": paragraph.style_name,
         "tab_count": paragraph.tab_count,
@@ -217,6 +218,46 @@ def _header_city_state_matches(text: str) -> List[str]:
     return matches
 
 
+def _header_address_shape_issues(text: str) -> List[Dict[str, Any]]:
+    issues: List[Dict[str, Any]] = []
+    for match in HEADER_CITY_STATE_PATTERN.finditer(text):
+        raw_value = match.group(0).strip()
+        clean_value = raw_value
+        prefix = re.search(r"([A-Z][A-Za-z .'-]+,\s+[A-Z]{2}(?:\s+\d{5})?)$", raw_value)
+        if prefix:
+            clean_value = prefix.group(1)
+        extra_prefix = raw_value[: max(0, len(raw_value) - len(clean_value))].strip()
+        if extra_prefix:
+            issues.append(
+                {
+                    "found": raw_value,
+                    "expected": clean_value,
+                    "problem": "Address text is glued to leftover characters or wrapped text.",
+                }
+            )
+        if match.start() > 0 and text[match.start() - 1].isalpha():
+            prefix_start = match.start() - 1
+            while prefix_start > 0 and text[prefix_start - 1].isalpha():
+                prefix_start -= 1
+            glued_value = text[prefix_start : match.end()].strip()
+            issues.append(
+                {
+                    "found": glued_value,
+                    "expected": raw_value,
+                    "problem": "Address text is glued to stray characters instead of starting cleanly.",
+                }
+            )
+        if re.search(r"\b[A-Z]{2}\s+\d{5}\s+\d{5}\b", raw_value):
+            issues.append(
+                {
+                    "found": raw_value,
+                    "expected": clean_value,
+                    "problem": "ZIP code appears duplicated or attached to the wrong location.",
+                }
+            )
+    return issues
+
+
 def _header_address_paragraphs(document: DocumentModel, header_indices: set[int]) -> List[ParagraphModel]:
     return [
         paragraph
@@ -228,11 +269,15 @@ def _header_address_paragraphs(document: DocumentModel, header_indices: set[int]
 def _looks_like_manual_layout(paragraph: ParagraphModel) -> bool:
     if paragraph.is_blank:
         return False
+    layout_text = paragraph.text.rstrip(" \t")
+    layout_tab_count = layout_text.count("\t")
+    has_layout_tabs = "\t" in layout_text
+    has_layout_repeated_spaces = bool(re.search(r" {2,}", layout_text))
     if paragraph.leading_spaces >= 2 or paragraph.tab_space_padding:
         return True
-    if paragraph.raw_repeated_spaces and (paragraph.has_tabs or paragraph.index <= 4 or DATE_PATTERN.search(paragraph.text)):
+    if has_layout_repeated_spaces and (has_layout_tabs or paragraph.index <= 4 or DATE_PATTERN.search(layout_text)):
         return True
-    if paragraph.tab_count >= 3 and len(paragraph.tab_stops) == 0:
+    if layout_tab_count >= 3 and len(paragraph.tab_stops) == 0:
         return True
     return False
 
@@ -591,17 +636,20 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
         if para.repeated_spaces and not para.is_blank:
             repeated_space_paragraphs.append(para)
 
+        layout_text = para.text.rstrip(" \t")
+        layout_tab_count = layout_text.count("\t")
+        has_layout_tabs = "\t" in layout_text
         has_tab_space_hack = para.tab_space_padding or (
             para.raw_repeated_spaces
-            and para.has_tabs
+            and has_layout_tabs
             and not para.tab_stops
             and not para.is_blank
         )
         if has_tab_space_hack:
             tab_space_hack_paragraphs.append(para)
-        elif para.tab_count >= 3 and not para.tab_stops and not para.is_blank:
+        elif layout_tab_count >= 3 and not para.tab_stops and not para.is_blank:
             excessive_tab_paragraphs.append(para)
-        elif para.has_tabs and not para.tab_stops:
+        elif has_layout_tabs and not para.tab_stops:
             tab_without_stop.append(para)
 
         if para.index in header_indices and _looks_like_manual_layout(para):
@@ -866,6 +914,11 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
         for paragraph in header_address_paragraphs
         for address in _header_city_state_matches(paragraph.text)
     ]
+    header_address_shape_issues = [
+        issue
+        for paragraph in header_address_paragraphs
+        for issue in _header_address_shape_issues(paragraph.text)
+    ]
     if header_indices and len(header_address_matches) != 2:
         evidence: Dict[str, Any] = {"detected_addresses": header_address_matches}
         if header_address_paragraphs:
@@ -877,6 +930,20 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 10,
                 "Header must contain exactly two city/state addresses before the Education section.",
                 evidence,
+            )
+        )
+    elif header_address_shape_issues:
+        violations.append(
+            _make_violation(
+                "header.address_line_integrity",
+                "major",
+                5,
+                "Header has two city/state addresses, but one address line is malformed or visually split.",
+                {
+                    "detected_addresses": header_address_matches,
+                    "address_issues": header_address_shape_issues,
+                    "paragraphs": [_paragraph_summary(p) for p in header_address_paragraphs[:4]],
+                },
             )
         )
 

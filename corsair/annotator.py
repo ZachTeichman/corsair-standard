@@ -33,6 +33,7 @@ RULE_LABELS: dict[str, str] = {
     "layout.no_textboxes": "Text boxes not allowed",
     "header.name_centered_top_line": "Name looks centered but is fragile to edit",
     "header.dual_address": "Header needs exactly two city/state addresses",
+    "header.address_line_integrity": "Header address line is malformed",
     "header.contact_single_row": "Contact info must be on one tab-separated row",
     "header.contact_spacing_hack": "Header looks aligned but is built with manual spacing",
     "section.corsair_structure_detected": "Corsair section structure not detected",
@@ -70,6 +71,7 @@ FIX_GUIDANCE: dict[str, str] = {
     "layout.no_textboxes": "Move text box content into regular document paragraphs.",
     "header.name_centered_top_line": "Keep the name visually centered, but center it with Word's paragraph alignment or a saved center tab stop instead of manual spacing.",
     "header.dual_address": "Include exactly two city/state addresses in the header contact row.",
+    "header.address_line_integrity": "Keep both location lines cleanly separated: left city/state/ZIP on the left and right city/state/ZIP on the right, without stray characters or wrapped ZIP codes.",
     "header.contact_single_row": "Keep the same visual layout, but use Word tab stops or paragraph alignment for the left, center, and right contact fields instead of lining things up by eye.",
     "header.contact_spacing_hack": "Delete the extra spaces between contact fields and use Word tab stops or paragraph alignment to keep the same visual layout.",
     "section.corsair_structure_detected": "Restore canonical Corsair section headers.",
@@ -107,6 +109,9 @@ COMMENT_EXPLANATIONS: dict[str, str] = {
     ),
     "header.contact_single_row": (
         "The contact line may look close visually, but the fields can drift when phone, email, or location text changes."
+    ),
+    "header.address_line_integrity": (
+        "The header has two addresses, but one location is glued to stray characters or may be wrapping onto the wrong side."
     ),
     "header.contact_spacing_hack": (
         "The header may look aligned now, but extra spaces can break when you edit phone, email, or location text."
@@ -208,6 +213,16 @@ def _evidence_detail(violation: dict[str, Any]) -> str:
         space_runs = paragraph.get("space_run_count")
         if isinstance(space_runs, int) and isinstance(max_spaces, int) and max_spaces > 1:
             return f"Found: {space_runs} repeated-space run{'s' if space_runs != 1 else ''}; longest is {max_spaces} spaces."
+
+    if rule_id == "header.address_line_integrity":
+        address_issues = evidence.get("address_issues")
+        if isinstance(address_issues, list) and address_issues:
+            first_issue = address_issues[0]
+            if isinstance(first_issue, dict):
+                found = first_issue.get("found")
+                expected = first_issue.get("expected")
+                if found and expected:
+                    return f"Found: {found}. Expected: {expected}."
 
     if rule_id in {"paragraph.tabs_require_defined_stops", "paragraph.excessive_alignment_tabs"}:
         tab_count = paragraph.get("tab_count")
