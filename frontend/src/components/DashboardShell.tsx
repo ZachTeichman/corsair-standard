@@ -12,18 +12,32 @@ interface DashboardShellProps {
   theme: "dark" | "light";
   onThemeChange: (theme: "dark" | "light") => void;
   onAnalyzed: (payload: AnalyzePayload) => void;
+  onHome: () => void;
 }
 
-export function DashboardShell({ payload, history, theme, onThemeChange, onAnalyzed }: DashboardShellProps) {
+export function DashboardShell({ payload, history, theme, onThemeChange, onAnalyzed, onHome }: DashboardShellProps) {
   const issueCount = payload?.result.violations.length ?? 0;
   const filename = payload?.source.filename ?? "No document selected";
+  const candidateFirstName = payload?.result.document_summary?.candidate_name?.first_name?.trim();
+  const greetingName = candidateFirstName || "there";
+  const structuralRisk = payload?.result.structural_risk;
+  const sourceCommentCount = payload?.annotation_summary?.source_comment_count ?? 0;
+  const estimatedCommentCount = payload?.annotation_summary?.estimated_comment_count_without_focus ?? 0;
+  const hasCommentOverload = sourceCommentCount > 20 || estimatedCommentCount > 20;
+  const shouldRecommendCleanTemplate =
+    hasCommentOverload || structuralRisk?.missing_canonical_structure || structuralRisk?.level === "critical";
 
   return (
     <div className="min-h-dvh bg-corsair-black text-white light:bg-corsair-ivory light:text-corsair-ink">
       <div className="grid min-h-dvh lg:grid-cols-[280px_1fr]">
         <aside className="border-b border-white/10 bg-black/30 p-5 backdrop-blur-xl light:border-black/10 light:bg-white/70 lg:border-b-0 lg:border-r">
           <div className="flex h-full flex-col">
-            <div className="mb-8 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onHome}
+              className="mb-8 flex items-center gap-3 text-left transition hover:text-corsair-gold"
+              aria-label="Return to homepage"
+            >
               <div className="grid h-12 w-12 place-items-center rounded-2xl border border-corsair-bronze/35 bg-corsair-bronze/10 text-corsair-gold">
                 <Workflow className="h-6 w-6" />
               </div>
@@ -32,7 +46,7 @@ export function DashboardShell({ payload, history, theme, onThemeChange, onAnaly
                 <br />
                 <span className="text-corsair-bronze">Standard</span>
               </div>
-            </div>
+            </button>
             <nav className="grid gap-2">
               <NavItem icon={<LayoutDashboard />} label="Overview" active />
               <NavItem icon={<FileText />} label="Issues" badge={issueCount} />
@@ -73,7 +87,9 @@ export function DashboardShell({ payload, history, theme, onThemeChange, onAnaly
           <header className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-corsair-bronze">Deterministic formatting compliance</p>
-              <h1 className="mt-2 font-display text-4xl text-white light:text-corsair-ink md:text-5xl">Good evening, Zach.</h1>
+              <h1 className="mt-2 font-display text-4xl text-white light:text-corsair-ink md:text-5xl">
+                Good evening, {greetingName}.
+              </h1>
               <p className="mt-2 max-w-2xl text-slate-400 light:text-slate-600">
                 {payload ? `${filename} has ${issueCount} formatting issue${issueCount === 1 ? "" : "s"} in the current audit.` : "Upload a Word resume to inspect formatting structure and generate an annotated DOCX."}
               </p>
@@ -88,20 +104,62 @@ export function DashboardShell({ payload, history, theme, onThemeChange, onAnaly
             </div>
           </header>
 
+          {shouldRecommendCleanTemplate ? (
+            <CleanTemplateNotice sourceCommentCount={sourceCommentCount} estimatedCommentCount={estimatedCommentCount} />
+          ) : null}
+
           <div className="grid gap-5 xl:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]">
             <section className="space-y-5">
               <ScoreRing payload={payload} />
-              <UploadPanel onAnalyzed={onAnalyzed} />
+              <div id="upload-section">
+                <UploadPanel onAnalyzed={onAnalyzed} />
+              </div>
               <IssueList payload={payload} />
             </section>
-            <section className="space-y-5">
+            <section id="dashboard-demo" className="space-y-5">
               <OfficePreview payload={payload} />
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400 light:border-black/10 light:bg-white/70 light:text-slate-600">
                 <strong className="text-corsair-gold">Structure View</strong> is staged for future DOCX formatting-mark visualization. The current source of truth is the analyzer output plus Word-native comments.
               </div>
             </section>
           </div>
+          <FooterLinks />
         </main>
+      </div>
+    </div>
+  );
+}
+
+function CleanTemplateNotice({
+  sourceCommentCount,
+  estimatedCommentCount,
+}: {
+  sourceCommentCount: number;
+  estimatedCommentCount: number;
+}) {
+  const commentCount = Math.max(sourceCommentCount, estimatedCommentCount);
+  return (
+    <div className="mb-6 rounded-2xl border border-corsair-bronze/35 bg-corsair-bronze/[0.08] p-4 shadow-bronze light:bg-white/80">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-corsair-bronze">
+            Comment overload detected
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-white light:text-corsair-ink">
+            Switch this resume into the clean Corsair template.
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 light:text-slate-700">
+            This audit would create {commentCount} Word comments without focused annotation. The dashboard still shows every issue,
+            but the annotated DOCX only marks representative examples so it does not overload the document.
+            The fastest fix is to move the content into the clean template, then run the audit again.
+          </p>
+        </div>
+        <a
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-corsair-gold/40 bg-gradient-to-br from-corsair-gold to-corsair-bronze px-4 py-2 text-sm font-bold text-black shadow-bronze transition hover:brightness-110"
+          href="/api/template/clean-docx"
+        >
+          Download Clean Template
+        </a>
       </div>
     </div>
   );
@@ -123,5 +181,18 @@ function NavItem({ icon, label, active, badge, disabled }: { icon: ReactElement;
       </span>
       {badge !== undefined ? <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs">{badge}</span> : null}
     </button>
+  );
+}
+
+function FooterLinks() {
+  return (
+    <footer className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-5 text-sm text-slate-500 light:border-black/10 light:text-slate-600 md:flex-row md:items-center md:justify-between">
+      <span>&copy; 2026 Corsair Standard</span>
+      <nav className="flex flex-wrap gap-4" aria-label="Legal links">
+        <a className="font-semibold transition hover:text-corsair-gold" href="/privacy.html">Privacy</a>
+        <a className="font-semibold transition hover:text-corsair-gold" href="/terms.html">Terms</a>
+        <a className="font-semibold transition hover:text-corsair-gold" href="/security.html">Security</a>
+      </nav>
+    </footer>
   );
 }

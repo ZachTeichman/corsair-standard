@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 import hashlib
 import json
 import os
@@ -8,31 +9,105 @@ import shutil
 import sys
 import time
 import uuid
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional
 from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+import slowapi.extension as slowapi_extension
+from slowapi.util import get_remote_address
+
+# SlowAPI wraps the route before FastAPI resolves postponed annotations.
+# Make these names available in the wrapper module so UploadFile stays valid.
+slowapi_extension.UploadFile = UploadFile
+slowapi_extension.Any = Any
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+
+def _load_local_env() -> None:
+    env_path = ROOT_DIR / "backend" / ".env"
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_local_env()
+
 from corsair.analyzer import analyze_docx
-from corsair.annotator import annotate_docx
+from corsair.annotator import (
+    annotate_docx,
+    count_docx_comments,
+    curate_docx_comment_violations,
+    estimate_docx_comment_count,
+)
+from backend.drive_storage import (
+    DriveStorageUnavailable,
+    cleanup_expired,
+    drive_configured,
+    drive_folder_id,
+    friendly_drive_error,
+    retention_hours,
+    upload_docx,
+    verify_folder,
+)
 
 UPLOAD_DIR = ROOT_DIR / "var" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATE_PATH = ROOT_DIR / "templates" / "corsair_clean_format_template.docx"
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+LOCAL_UPLOAD_RETENTION_SECONDS = 24 * 60 * 60
+LOCAL_CLEANUP_INTERVAL_SECONDS = 5 * 60
 GRAPH_AUTH_FLOWS: dict[str, dict[str, Any]] = {}
 GRAPH_SESSION: dict[str, Any] = {}
 GRAPH_SCOPES = "openid profile offline_access User.Read Files.ReadWrite"
 GRAPH_ROOT = "https://graph.microsoft.com"
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
+
+
+def _drive_docx_title(filename: str, label: str) -> str:
+    source = Path(filename).name
+    stem = Path(source).stem or "resume"
+    return f"{stem} - {label}.docx"
+
+
+def cleanup_local_uploads() -> dict[str, Any]:
+    cutoff = time.time() - LOCAL_UPLOAD_RETENTION_SECONDS
+    deleted: list[str] = []
+    for path in UPLOAD_DIR.glob("*.docx"):
+        try:
+            expired = path.stat().st_mtime < cutoff
+        except FileNotFoundError:
+            continue
+        if not expired:
+            continue
+        path.unlink(missing_ok=True)
+        deleted.append(path.name)
+    return {
+        "deleted": deleted,
+        "count": len(deleted),
+        "retention_seconds": LOCAL_UPLOAD_RETENTION_SECONDS,
+    }
+
+
+async def _local_upload_cleanup_loop() -> None:
+    while True:
+        cleanup_local_uploads()
+        await asyncio.sleep(LOCAL_CLEANUP_INTERVAL_SECONDS)
 
 app = FastAPI(
     title="Corsair Resume Format Compliance API",
@@ -42,6 +117,9 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,9 +135,66 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def start_local_upload_cleanup() -> None:
+    cleanup_local_uploads()
+    app.state.local_upload_cleanup_task = asyncio.create_task(_local_upload_cleanup_loop())
+
+
+@app.on_event("shutdown")
+async def stop_local_upload_cleanup() -> None:
+    task = getattr(app.state, "local_upload_cleanup_task", None)
+    if not task:
+        return
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/storage/status")
+def storage_status() -> dict[str, Any]:
+    local_cleanup = cleanup_local_uploads()
+    status: dict[str, Any] = {
+        "provider": "google_drive",
+        "configured": drive_configured(),
+        "folder_id": drive_folder_id(),
+        "retention_hours": retention_hours(),
+        "local_upload_retention_hours": LOCAL_UPLOAD_RETENTION_SECONDS // 3600,
+        "local_cleanup": local_cleanup,
+        "available": False,
+    }
+    if not drive_configured():
+        return status
+    try:
+        folder = verify_folder()
+    except DriveStorageUnavailable as exc:
+        status["error"] = str(exc)
+    except Exception as exc:
+        status["error"] = f"Google Drive storage check failed: {exc}"
+    else:
+        status["available"] = True
+        status["folder"] = {
+            "id": folder.get("id"),
+            "name": folder.get("name"),
+            "url": folder.get("webViewLink"),
+        }
+    return status
+
+
+@app.post("/api/storage/cleanup")
+def cleanup_storage() -> dict[str, Any]:
+    local_cleanup = cleanup_local_uploads()
+    if not drive_configured():
+        return {"local_uploads": local_cleanup, "google_drive": {"configured": False, "deleted": [], "count": 0}}
+    try:
+        return {"local_uploads": local_cleanup, "google_drive": cleanup_expired()}
+    except DriveStorageUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/template/clean-docx")
@@ -112,7 +247,7 @@ def _json_request(
         request_headers["Content-Type"] = "application/json"
     if token:
         request_headers["Authorization"] = f"Bearer {token}"
-    request = Request(url, data=data, method=method, headers=request_headers)
+    request = UrlRequest(url, data=data, method=method, headers=request_headers)
     try:
         with urlopen(request, timeout=30) as response:
             response_body = response.read()
@@ -124,7 +259,7 @@ def _json_request(
 
 def _token_request(url: str, form: dict[str, str]) -> dict[str, Any]:
     data = urlencode(form).encode("utf-8")
-    request = Request(url, data=data, method="POST", headers={"Content-Type": "application/x-www-form-urlencoded"})
+    request = UrlRequest(url, data=data, method="POST", headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:
         with urlopen(request, timeout=30) as response:
             response_body = response.read()
@@ -135,7 +270,7 @@ def _token_request(url: str, form: dict[str, str]) -> dict[str, Any]:
 
 
 def _upload_bytes(url: str, token: str, payload: bytes) -> dict[str, Any]:
-    request = Request(
+    request = UrlRequest(
         url,
         data=payload,
         method="PUT",
@@ -233,6 +368,7 @@ def office_callback(
 
 @app.get("/api/uploads/{upload_id}/original")
 def download_original(upload_id: str) -> FileResponse:
+    cleanup_local_uploads()
     matches = list(UPLOAD_DIR.glob(f"{upload_id}_original_*.docx"))
     if not matches:
         raise HTTPException(status_code=404, detail="Uploaded DOCX not found.")
@@ -247,6 +383,7 @@ def download_original(upload_id: str) -> FileResponse:
 
 @app.get("/api/uploads/{upload_id}/annotated")
 def download_annotated(upload_id: str) -> FileResponse:
+    cleanup_local_uploads()
     matches = list(UPLOAD_DIR.glob(f"{upload_id}_annotated_*.docx"))
     if not matches:
         raise HTTPException(status_code=404, detail="Annotated DOCX not found.")
@@ -260,6 +397,7 @@ def download_annotated(upload_id: str) -> FileResponse:
 
 
 def _uploaded_docx(upload_id: str) -> tuple[Path, str]:
+    cleanup_local_uploads()
     matches = list(UPLOAD_DIR.glob(f"{upload_id}_original_*.docx"))
     if not matches:
         raise HTTPException(status_code=404, detail="Uploaded DOCX not found.")
@@ -305,25 +443,85 @@ def create_office_preview(upload_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/analyze")
-def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
+@limiter.limit("10/hour")
+def analyze_resume(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:
+    cleanup_local_uploads()
     filename = file.filename or ""
-    if not filename.lower().endswith(".docx"):
-        raise HTTPException(
-            status_code=400,
-            detail="Only .docx uploads are supported by the current deterministic checker.",
-        )
+    lower_filename = filename.lower()
+    if lower_filename.endswith(".docm"):
+        raise HTTPException(status_code=400, detail="DOCM files with macros are not accepted.")
+    if not lower_filename.endswith(".docx"):
+        raise HTTPException(status_code=400, detail="Only .docx uploads are supported.")
+    if file.size and file.size > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 10MB limit.")
 
     upload_id = uuid.uuid4().hex
     upload_path = UPLOAD_DIR / f"{upload_id}_original_{Path(filename).name}"
     with upload_path.open("wb") as handle:
-        shutil.copyfileobj(file.file, handle)
+        total_bytes = 0
+        while True:
+            chunk = file.file.read(1024 * 1024)
+            if not chunk:
+                break
+            total_bytes += len(chunk)
+            if total_bytes > MAX_UPLOAD_BYTES:
+                handle.close()
+                upload_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=413, detail="File exceeds 10MB limit.")
+            handle.write(chunk)
 
     result = analyze_docx(upload_path, render=False)
     annotated_path = UPLOAD_DIR / f"{upload_id}_annotated_{Path(filename).name}"
+    comment_violations, annotation_summary = curate_docx_comment_violations(result.get("violations", []))
+    annotation_summary["source_comment_count"] = count_docx_comments(upload_path)
+    annotation_summary["estimated_comment_count_without_focus"] = estimate_docx_comment_count(result.get("violations", []))
     try:
-        annotate_docx(upload_path, result.get("violations", []), annotated_path)
+        annotate_docx(upload_path, comment_violations, annotated_path)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Could not create annotated DOCX: {exc}") from exc
+
+    drive_links: dict[str, Any] | None = None
+    if drive_configured():
+        try:
+            cleanup_expired()
+            original_drive = upload_docx(
+                upload_path,
+                title=_drive_docx_title(filename, "Original"),
+                upload_id=upload_id,
+                role="original",
+            )
+            annotated_drive = upload_docx(
+                annotated_path,
+                title=_drive_docx_title(filename, "Annotated"),
+                upload_id=upload_id,
+                role="annotated",
+            )
+            drive_links = {
+                "provider": "google_drive",
+                "folder_id": drive_folder_id(),
+                "retention_hours": retention_hours(),
+                "original": {
+                    "id": original_drive.get("id"),
+                    "name": original_drive.get("name"),
+                    "web_view_link": original_drive.get("webViewLink"),
+                    "web_content_link": original_drive.get("webContentLink"),
+                    "expires_at": original_drive.get("expires_at"),
+                },
+                "annotated": {
+                    "id": annotated_drive.get("id"),
+                    "name": annotated_drive.get("name"),
+                    "web_view_link": annotated_drive.get("webViewLink"),
+                    "web_content_link": annotated_drive.get("webContentLink"),
+                    "expires_at": annotated_drive.get("expires_at"),
+                },
+            }
+        except Exception as exc:
+            drive_links = {
+                "provider": "google_drive",
+                "folder_id": drive_folder_id(),
+                "retention_hours": retention_hours(),
+                "error": friendly_drive_error(exc),
+            }
 
     original_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/original" if PUBLIC_BASE_URL else None
     annotated_public_url = f"{PUBLIC_BASE_URL}/api/uploads/{upload_id}/annotated" if PUBLIC_BASE_URL else None
@@ -346,6 +544,7 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
             "file_type": "docx",
         },
         "result": result,
+        "annotation_summary": annotation_summary,
         "preview": [],
         "render_preview": {
             "available": False,
@@ -369,5 +568,6 @@ def analyze_resume(file: UploadFile = File(...)) -> dict[str, Any]:
             "office_viewer_embed": office_embed_url,
             "office_viewer_open": office_viewer_url,
             "office_viewer_source": "annotated_docx",
+            "google_drive": drive_links,
         },
     }

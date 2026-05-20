@@ -86,6 +86,9 @@ export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
           <small className="text-slate-400 light:text-slate-600">Office Open XML resumes only. Selecting a file starts the audit.</small>
         </span>
       </div>
+      <p className="mt-3 text-sm font-semibold text-corsair-gold">
+        Files are automatically deleted within 24 hours. Never used for AI training.
+      </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button variant="primary" disabled={!file || loading} onClick={() => void runAudit()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

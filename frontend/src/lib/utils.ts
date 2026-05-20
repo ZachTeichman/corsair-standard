@@ -17,9 +17,13 @@ export function severityCounts(violations: Violation[]) {
 }
 
 export function severityTone(severity: Severity) {
-  if (severity === "critical") return "text-red-200 bg-red-500/15 border-red-400/30";
-  if (severity === "major") return "text-amber-100 bg-amber-500/15 border-amber-400/30";
-  return "text-slate-200 bg-slate-500/15 border-slate-300/20";
+  if (severity === "critical") {
+    return "text-red-100 bg-red-500/20 border-red-400/40 light:text-red-800 light:bg-red-50 light:border-red-300";
+  }
+  if (severity === "major") {
+    return "text-amber-100 bg-amber-500/20 border-amber-400/40 light:text-amber-900 light:bg-amber-100 light:border-amber-300";
+  }
+  return "text-slate-100 bg-slate-500/20 border-slate-300/25 light:text-slate-700 light:bg-slate-100 light:border-slate-300";
 }
 
 export function ruleTitle(ruleId: string) {
@@ -55,8 +59,8 @@ export function ruleTitle(ruleId: string) {
     "paragraph.excessive_alignment_tabs": "Too many alignment tabs",
     "paragraph.tabs_require_defined_stops": "Tab lacks a defined stop",
     "paragraph.right_tab_consistency": "Right tab positions are inconsistent",
-    "paragraph.body_alignment_consistency": "Body alignment is inconsistent",
-    "bullet.indent_consistency": "Bullet indentation inconsistent",
+    "paragraph.body_alignment_consistency": "Numbered bullet is justified",
+    "bullet.indent_consistency": "Bullet indent differs from template",
     "typography.single_font_family": "Font family is inconsistent",
     "typography.body_font_size_consistency": "Body font size inconsistent",
     "typography.no_unauthorized_inline_emphasis": "Unexpected inline emphasis",
@@ -67,8 +71,37 @@ export function ruleTitle(ruleId: string) {
 export function evidenceSummary(violation: Violation) {
   const evidence = violation.evidence ?? {};
   const paragraph = evidence.paragraph as { index?: number; text?: string } | undefined;
-  const paragraphs = evidence.paragraphs as Array<{ index?: number; text?: string }> | undefined;
-  const first = paragraph ?? paragraphs?.[0];
+  const paragraphs = evidence.paragraphs as Array<{
+    index?: number;
+    text?: string;
+    bullet_position_inches?: number;
+    text_indent_inches?: number;
+    alignment?: string | null;
+    expected_alignment?: string;
+  }> | undefined;
+  const first = (paragraph ?? paragraphs?.[0]) as
+    | {
+        index?: number;
+        text?: string;
+        bullet_position_inches?: number;
+        text_indent_inches?: number;
+        alignment?: string | null;
+        expected_alignment?: string;
+      }
+    | undefined;
+  if (violation.rule_id === "paragraph.body_alignment_consistency" && first?.index !== undefined) {
+    const found = first.alignment === "both" ? "Justify" : (first.alignment ?? "unknown");
+    const expected = first.expected_alignment ?? (evidence.expected_alignment as string | undefined) ?? "left";
+    return `Paragraph ${first.index}: alignment is ${found}; expected ${expected.charAt(0).toUpperCase()}${expected.slice(1)}`;
+  }
+  if (violation.rule_id === "bullet.indent_consistency" && first?.index !== undefined) {
+    const expected = evidence.expected as { bullet_position_inches?: number; text_indent_inches?: number } | undefined;
+    const foundBullet = typeof first.bullet_position_inches === "number" ? `${first.bullet_position_inches.toFixed(2)}in` : "unknown";
+    const foundText = typeof first.text_indent_inches === "number" ? `${first.text_indent_inches.toFixed(2)}in` : "unknown";
+    const expectedBullet = typeof expected?.bullet_position_inches === "number" ? `${expected.bullet_position_inches.toFixed(2)}in` : "0.25in";
+    const expectedText = typeof expected?.text_indent_inches === "number" ? `${expected.text_indent_inches.toFixed(2)}in` : "0.50in";
+    return `Paragraph ${first.index}: bullet at ${foundBullet} vs ${expectedBullet}; text starts at ${foundText} vs ${expectedText}`;
+  }
   if (first?.index !== undefined) {
     return `Paragraph ${first.index}${first.text ? `: ${first.text.slice(0, 92)}` : ""}`;
   }
@@ -77,4 +110,3 @@ export function evidenceSummary(violation: Violation) {
   }
   return "Document-level issue";
 }
-

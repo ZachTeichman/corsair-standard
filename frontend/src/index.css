@@ -51,6 +51,223 @@ iframe {
   color-scheme: light;
 }
 
+.paper-stack-hero {
+  width: 100%;
+  min-height: 100dvh;
+  background: #020303;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  font-family: "DM Sans", Inter, system-ui, sans-serif;
+}
+
+.paper-stack-hero.is-light {
+  background:
+    linear-gradient(135deg, rgba(255, 252, 246, 0.96), rgba(244, 235, 220, 0.92)),
+    #f7f2ea;
+}
+
+.paper-stack-hero__theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid rgba(215, 168, 94, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.paper-stack-hero.is-light .paper-stack-hero__theme-toggle {
+  border-color: rgba(91, 59, 24, 0.16);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 12px 34px rgba(89, 62, 32, 0.08);
+}
+
+.paper-stack-hero__theme-toggle button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: transparent;
+  color: rgba(246, 242, 234, 0.62);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.paper-stack-hero.is-light .paper-stack-hero__theme-toggle button {
+  color: rgba(36, 26, 17, 0.62);
+}
+
+.paper-stack-hero__theme-toggle button.is-active {
+  background: linear-gradient(135deg, #f0bd6d, #aa6f2c);
+  color: #140e07;
+}
+
+.paper-stack-hero__copy {
+  padding: 96px 38px 72px 54px;
+  position: relative;
+  z-index: 2;
+}
+
+.paper-stack-hero__title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(46px, 4.6vw, 70px);
+  line-height: 0.93;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #f0e6d0;
+  margin: 0 0 22px;
+}
+
+.paper-stack-hero__title-accent {
+  color: #f1c878;
+}
+
+.paper-stack-hero.is-light .paper-stack-hero__title {
+  color: #21170f;
+}
+
+.paper-stack-hero.is-light .paper-stack-hero__title-accent {
+  color: #87551f;
+}
+
+.paper-stack-hero__actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.paper-stack-hero__visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 620px;
+  height: 100%;
+  padding: 72px 40px;
+}
+
+.paper-stack-hero__footer {
+  position: absolute;
+  right: 28px;
+  bottom: 22px;
+  left: 54px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: rgba(246, 242, 234, 0.48);
+  font-size: 13px;
+}
+
+.paper-stack-hero__footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.paper-stack-hero__footer a {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.paper-stack-hero__footer a:hover {
+  color: #f1c878;
+}
+
+.paper-stack-hero.is-light .paper-stack-hero__footer {
+  color: rgba(38, 30, 22, 0.58);
+}
+
+.paper-stack-hero__stage {
+  position: relative;
+  width: 340px;
+  height: 460px;
+}
+
+.paper-stack-hero__paper {
+  width: 300px;
+  height: 400px;
+  padding: 22px 20px;
+}
+
+@media (max-width: 900px) {
+  .paper-stack-hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .paper-stack-hero__copy {
+    padding: 72px 24px 24px;
+  }
+
+  .paper-stack-hero__theme-toggle {
+    top: 18px;
+    right: 18px;
+  }
+
+  .paper-stack-hero__visual {
+    min-height: 520px;
+    padding: 28px 24px 80px;
+  }
+
+  .paper-stack-hero__footer {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 24px 22px;
+  }
+
+  .paper-stack-hero__stage {
+    transform: scale(0.88);
+    transform-origin: center top;
+  }
+}
+
+@media (max-width: 520px) {
+  .paper-stack-hero__copy {
+    padding: 76px 18px 14px;
+  }
+
+  .paper-stack-hero__title {
+    font-size: clamp(42px, 14vw, 58px);
+  }
+
+  .paper-stack-hero__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .paper-stack-hero__actions > * {
+    width: 100%;
+  }
+
+  .paper-stack-hero__visual {
+    min-height: 460px;
+    padding-inline: 0;
+  }
+
+  .paper-stack-hero__stage {
+    transform: scale(0.72);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

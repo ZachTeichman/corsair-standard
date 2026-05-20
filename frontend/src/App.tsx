@@ -4,8 +4,15 @@ import { LandingPage } from "./components/LandingPage";
 import type { AnalyzePayload, AuditHistoryItem } from "./types/api";
 
 const HISTORY_KEY = "corsair-standard:audit-history";
+type AppView = "home" | "app";
+
+function getViewFromLocation(): AppView {
+  return window.location.pathname.startsWith("/app") ? "app" : "home";
+}
 
 export default function App() {
+  const [view, setView] = useState<AppView>(() => getViewFromLocation());
+  const [pendingScrollTarget, setPendingScrollTarget] = useState<string | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = window.localStorage.getItem("corsair-standard:theme");
     return saved === "light" ? "light" : "dark";
@@ -18,6 +25,12 @@ export default function App() {
       return [];
     }
   });
+
+  useEffect(() => {
+    const handlePopState = () => setView(getViewFromLocation());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
@@ -43,8 +56,36 @@ export default function App() {
     setHistory((current) => [item, ...current.filter((entry) => entry.id !== item.id)].slice(0, 25));
   };
 
-  const enterDashboard = () => {
-    document.getElementById("dashboard")?.scrollIntoView({ behavior: "smooth" });
+  const openApp = (targetId?: string) => {
+    if (!window.location.pathname.startsWith("/app")) {
+      window.history.pushState({}, "", "/app");
+    }
+    setView("app");
+    setPendingScrollTarget(targetId ?? null);
+  };
+
+  const openHome = () => {
+    if (window.location.pathname !== "/") {
+      window.history.pushState({}, "", "/");
+    }
+    setView("home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (view !== "app" || !pendingScrollTarget) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(pendingScrollTarget)?.scrollIntoView({
+        behavior: "smooth",
+        block: pendingScrollTarget === "upload-section" ? "center" : "start",
+      });
+      setPendingScrollTarget(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingScrollTarget, view]);
+
+  const openAudit = () => {
+    openApp("upload-section");
   };
 
   const dashboard = useMemo(
@@ -55,16 +96,15 @@ export default function App() {
         theme={theme}
         onThemeChange={setTheme}
         onAnalyzed={handleAnalyzed}
+        onHome={openHome}
       />
     ),
     [payload, history, theme],
   );
 
-  return (
-    <>
-      <LandingPage onEnter={enterDashboard} />
-      <div id="dashboard">{dashboard}</div>
-    </>
-  );
-}
+  if (view === "home") {
+    return <LandingPage onRunAudit={openAudit} theme={theme} onThemeChange={setTheme} />;
+  }
 
+  return <div id="dashboard">{dashboard}</div>;
+}

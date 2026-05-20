@@ -10,4 +10,8 @@ frontend/*.js
 frontend/*.d.ts
 .env
 .env.local
+backend/.env
+var/google-drive-token.json
+var/google-drive-client-secret.json
+var/google-drive-service-account.json
 .vercel
