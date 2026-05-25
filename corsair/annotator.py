@@ -64,6 +64,7 @@ RULE_LABELS: dict[str, str] = {
     "typography.single_font_family": "Multiple font families detected",
     "typography.body_font_size_consistency": "Body font size inconsistent",
     "typography.no_unauthorized_inline_emphasis": "Unauthorized bold/italic in bullet",
+    "text.spelling_suspected": "Possible spelling issue",
 }
 
 FIX_GUIDANCE: dict[str, str] = {
@@ -103,6 +104,7 @@ FIX_GUIDANCE: dict[str, str] = {
     "typography.single_font_family": "Select all text and apply one font throughout.",
     "typography.body_font_size_consistency": "Make the body text one consistent size between 10pt and 12pt.",
     "typography.no_unauthorized_inline_emphasis": "Remove bold or italic from this bullet unless the visual layout intentionally calls for it.",
+    "text.spelling_suspected": "Review this word manually before changing it. Names, companies, and industry terms may be intentional.",
 }
 
 COMMENT_EXPLANATIONS: dict[str, str] = {
@@ -172,6 +174,7 @@ COMMENT_EXPLANATIONS: dict[str, str] = {
     "typography.single_font_family": "More than one font is used in the resume.",
     "typography.body_font_size_consistency": "The body text uses more than one font size.",
     "typography.no_unauthorized_inline_emphasis": "This bullet has bold or italic text where the template usually expects plain text.",
+    "text.spelling_suspected": "This word may be misspelled. Check it manually before changing names, company terms, or abbreviations.",
 }
 
 
@@ -463,6 +466,12 @@ def _evidence_detail(violation: dict[str, Any]) -> str:
         if date_text and section:
             return f"Found: {date_text} is out of order in {section}."
 
+    if rule_id == "text.spelling_suspected":
+        word = paragraph.get("word")
+        suggestion = paragraph.get("suggestion")
+        if word and suggestion:
+            return f"Found: {word}. Possible: {suggestion}."
+
     return ""
 
 
@@ -475,6 +484,7 @@ def _combine_explanation_and_detail(rule_id: str, explanation: str, detail: str)
         "paragraph.body_alignment_consistency",
         "section.label_spelling",
         "section.reverse_chronological_order",
+        "text.spelling_suspected",
     }:
         return f"{explanation} {detail}"
     clean_detail = detail

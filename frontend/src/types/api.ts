@@ -64,6 +64,7 @@ export interface DocumentLinks {
     provider: "google_drive";
     folder_id?: string | null;
     retention_hours?: number;
+    status?: "ready" | "pending" | "disabled" | "error";
     error?: string;
     original?: {
       id?: string;

@@ -64,6 +64,7 @@ export function ruleTitle(ruleId: string) {
     "typography.single_font_family": "Font family is inconsistent",
     "typography.body_font_size_consistency": "Body font size inconsistent",
     "typography.no_unauthorized_inline_emphasis": "Unexpected inline emphasis",
+    "text.spelling_suspected": "Possible spelling issue",
   };
   return labels[ruleId] ?? ruleId;
 }
@@ -101,6 +102,13 @@ export function evidenceSummary(violation: Violation) {
     const expectedBullet = typeof expected?.bullet_position_inches === "number" ? `${expected.bullet_position_inches.toFixed(2)}in` : "0.25in";
     const expectedText = typeof expected?.text_indent_inches === "number" ? `${expected.text_indent_inches.toFixed(2)}in` : "0.50in";
     return `Paragraph ${first.index}: bullet at ${foundBullet} vs ${expectedBullet}; text starts at ${foundText} vs ${expectedText}`;
+  }
+  if (violation.rule_id === "text.spelling_suspected" && first?.index !== undefined) {
+    const word = (first as { word?: string }).word;
+    const suggestion = (first as { suggestion?: string }).suggestion;
+    if (word && suggestion) {
+      return `Paragraph ${first.index}: "${word}" may be "${suggestion}"`;
+    }
   }
   if (first?.index !== undefined) {
     return `Paragraph ${first.index}${first.text ? `: ${first.text.slice(0, 92)}` : ""}`;

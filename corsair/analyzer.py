@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from .docx_parser import DocumentModel, ParagraphModel, parse_docx
 from .render_validation import get_render_validation_status, validate_rendered_page_count
 from .rubric import load_rubric
+from .spelling import find_spelling_issues
 
 
 SECTION_PATTERN = re.compile(r"^[A-Z][A-Z &/]{3,}$")
@@ -1322,6 +1323,32 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 1,
                 "Bold or italic emphasis in bullets must only be used for canonical labels such as GPA or Honors.",
                 {"paragraphs": [_paragraph_summary(p) for p in unauthorized_emphasis[:8]]},
+            )
+        )
+
+    spelling_issues = find_spelling_issues(document, excluded_paragraph_indices=section_indices)
+    if spelling_issues:
+        violations.append(
+            _make_violation(
+                "text.spelling_suspected",
+                "minor",
+                0,
+                "Possible spelling issue detected. Review manually before changing.",
+                {
+                    "paragraphs": [
+                        _paragraph_summary(
+                            item["paragraph"],
+                            target_ranges=item["findings"][0]["target_ranges"],
+                        )
+                        | {
+                            "spelling": item["findings"],
+                            "word": item["findings"][0]["word"],
+                            "suggestion": item["findings"][0]["suggestion"],
+                        }
+                        for item in spelling_issues[:8]
+                    ],
+                    "review_only": True,
+                },
             )
         )
 

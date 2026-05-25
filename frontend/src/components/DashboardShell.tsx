@@ -1,5 +1,5 @@
-import { Download, FileText, History, LayoutDashboard, Moon, Settings, Sun, Workflow } from "lucide-react";
-import type { ReactElement } from "react";
+import { BookOpen, FileQuestion, Moon, Sun, UsersRound, Workflow } from "lucide-react";
+import type { ReactNode } from "react";
 import type { AnalyzePayload, AuditHistoryItem } from "../types/api";
 import { IssueList } from "./IssueList";
 import { OfficePreview } from "./OfficePreview";
@@ -15,7 +15,7 @@ interface DashboardShellProps {
   onHome: () => void;
 }
 
-export function DashboardShell({ payload, history, theme, onThemeChange, onAnalyzed, onHome }: DashboardShellProps) {
+export function DashboardShell({ payload, theme, onThemeChange, onAnalyzed, onHome }: DashboardShellProps) {
   const issueCount = payload?.result.violations.length ?? 0;
   const filename = payload?.source.filename ?? "No document selected";
   const candidateFirstName = payload?.result.document_summary?.candidate_name?.first_name?.trim();
@@ -47,13 +47,10 @@ export function DashboardShell({ payload, history, theme, onThemeChange, onAnaly
                 <span className="text-corsair-bronze">Standard</span>
               </div>
             </button>
-            <nav className="grid gap-2">
-              <NavItem icon={<LayoutDashboard />} label="Overview" active />
-              <NavItem icon={<FileText />} label="Issues" badge={issueCount} />
-              <NavItem icon={<Workflow />} label="Structure" badge="soon" />
-              <NavItem icon={<History />} label="Score History" badge={history.length || undefined} />
-              <NavItem icon={<Download />} label="Documents" />
-              <NavItem icon={<Settings />} label="Settings" disabled />
+            <nav className="grid gap-2" aria-label="Resource pages">
+              <ResourceLink href="/why.html" icon={<FileQuestion className="h-5 w-5" />} label="Why this site" />
+              <ResourceLink href="/formatting-guide.html" icon={<BookOpen className="h-5 w-5" />} label="Formatting guide" />
+              <ResourceLink href="/club" icon={<UsersRound className="h-5 w-5" />} label="Club version" />
             </nav>
             <div className="mt-auto space-y-4 pt-8">
               <a
@@ -118,9 +115,6 @@ export function DashboardShell({ payload, history, theme, onThemeChange, onAnaly
             </section>
             <section id="dashboard-demo" className="space-y-5">
               <OfficePreview payload={payload} />
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400 light:border-black/10 light:bg-white/70 light:text-slate-600">
-                <strong className="text-corsair-gold">Structure View</strong> is staged for future DOCX formatting-mark visualization. The current source of truth is the analyzer output plus Word-native comments.
-              </div>
             </section>
           </div>
           <FooterLinks />
@@ -165,22 +159,17 @@ function CleanTemplateNotice({
   );
 }
 
-function NavItem({ icon, label, active, badge, disabled }: { icon: ReactElement; label: string; active?: boolean; badge?: number | string; disabled?: boolean }) {
+function ResourceLink({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
-    <button
-      disabled={disabled}
-      className={`flex min-h-12 items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition ${
-        active
-          ? "border-corsair-bronze/30 bg-corsair-bronze/10 text-corsair-gold"
-          : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white light:text-slate-600"
-      } disabled:cursor-not-allowed disabled:opacity-40`}
+    <a
+      href={href}
+      className="flex min-h-12 items-center justify-between rounded-2xl border border-transparent px-4 text-sm font-semibold text-slate-400 transition hover:border-white/10 hover:bg-white/[0.04] hover:text-white light:text-slate-600 light:hover:text-corsair-ink"
     >
       <span className="flex items-center gap-3">
         {icon}
         {label}
       </span>
-      {badge !== undefined ? <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs">{badge}</span> : null}
-    </button>
+    </a>
   );
 }
 

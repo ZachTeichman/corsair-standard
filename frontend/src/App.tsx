@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { ClubComingSoon } from "./components/ClubComingSoon";
 import { DashboardShell } from "./components/DashboardShell";
 import { LandingPage } from "./components/LandingPage";
 import type { AnalyzePayload, AuditHistoryItem } from "./types/api";
 
 const HISTORY_KEY = "corsair-standard:audit-history";
-type AppView = "home" | "app";
+type AppView = "home" | "app" | "club";
 
 function getViewFromLocation(): AppView {
+  if (window.location.pathname.startsWith("/club")) return "club";
   return window.location.pathname.startsWith("/app") ? "app" : "home";
 }
 
@@ -104,6 +106,10 @@ export default function App() {
 
   if (view === "home") {
     return <LandingPage onRunAudit={openAudit} theme={theme} onThemeChange={setTheme} />;
+  }
+
+  if (view === "club") {
+    return <ClubComingSoon onHome={openHome} onAudit={openAudit} theme={theme} onThemeChange={setTheme} />;
   }
 
   return <div id="dashboard">{dashboard}</div>;

@@ -511,6 +511,26 @@ export default function PaperStackHero({ onRunAudit, theme = "dark", onThemeChan
           >
             Download clean template
           </a>
+          <a
+            href="/club"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 48,
+              padding: "13px 20px",
+              borderRadius: 8,
+              border: isLight ? "1px solid rgba(110,71,29,0.18)" : "1px solid rgba(215,168,94,0.18)",
+              background: isLight ? "rgba(255,255,255,0.42)" : "rgba(255,255,255,0.025)",
+              color: isLight ? "#4b321e" : "#d9c7aa",
+              fontSize: 14,
+              fontWeight: 400,
+              textDecoration: "none",
+              cursor: "pointer",
+            }}
+          >
+            Club batch scoring
+          </a>
         </motion.div>
       </div>
 

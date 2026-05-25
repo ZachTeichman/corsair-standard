@@ -277,6 +277,13 @@
       "category": "visual"
     },
     {
+      "id": "text.spelling_suspected",
+      "severity": "minor",
+      "points": 0,
+      "fixable": false,
+      "category": "guidance"
+    },
+    {
       "id": "document.one_page_rendered",
       "severity": "critical",
       "points": 10,

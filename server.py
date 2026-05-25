@@ -1,8 +1,8 @@
-"""Legacy local entrypoint.
+"""Local entrypoint.
 
 The deployable FastAPI app now lives in backend/main.py. This shim keeps the
-old `uvicorn server:app` workflow working by serving the API plus the current
-React frontend build when available.
+old `uvicorn server:app` workflow working by serving the API plus the React
+frontend build.
 """
 
 from pathlib import Path
@@ -20,32 +20,24 @@ STATIC_DIR = FRONTEND_DIST if (FRONTEND_DIST / "index.html").exists() else ROOT_
 
 @app.get("/app")
 @app.get("/app/")
+@app.head("/app")
+@app.head("/app/")
 def serve_react_app() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
-@app.get("/index.html")
-@app.head("/index.html")
-def serve_legacy_home() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
-
-
-@app.get("/audit.html")
-@app.head("/audit.html")
-def serve_legacy_audit() -> FileResponse:
-    return FileResponse(WEB_DIR / "audit.html")
+@app.get("/club")
+@app.get("/club/")
+@app.head("/club")
+@app.head("/club/")
+def serve_club_app() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/styles.css")
 @app.head("/styles.css")
-def serve_legacy_styles() -> FileResponse:
+def serve_static_page_styles() -> FileResponse:
     return FileResponse(WEB_DIR / "styles.css")
-
-
-@app.get("/app.js")
-@app.head("/app.js")
-def serve_legacy_app_js() -> FileResponse:
-    return FileResponse(WEB_DIR / "app.js")
 
 
 @app.get("/privacy.html")
@@ -64,6 +56,18 @@ def serve_terms() -> FileResponse:
 @app.head("/security.html")
 def serve_security() -> FileResponse:
     return FileResponse(WEB_DIR / "security.html")
+
+
+@app.get("/why.html")
+@app.head("/why.html")
+def serve_why() -> FileResponse:
+    return FileResponse(WEB_DIR / "why.html")
+
+
+@app.get("/formatting-guide.html")
+@app.head("/formatting-guide.html")
+def serve_formatting_guide() -> FileResponse:
+    return FileResponse(WEB_DIR / "formatting-guide.html")
 
 
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")

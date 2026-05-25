@@ -9,6 +9,8 @@ interface UploadPanelProps {
   onAnalyzed: (payload: AnalyzePayload) => void;
 }
 
+const MAX_UPLOAD_BYTES = 1 * 1024 * 1024;
+
 export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -18,6 +20,11 @@ export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
   const runAudit = useCallback(
     async (nextFile = file) => {
       if (!nextFile) return;
+      if (nextFile.size > MAX_UPLOAD_BYTES) {
+        setError("File exceeds 1MB limit. A resume DOCX should be under 1MB.");
+        setFile(null);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -83,7 +90,7 @@ export function UploadPanel({ onAnalyzed }: UploadPanelProps) {
         </span>
         <span className="min-w-0">
           <strong className="block truncate text-white light:text-corsair-ink">{file?.name ?? "Choose or drop a .docx file"}</strong>
-          <small className="text-slate-400 light:text-slate-600">Office Open XML resumes only. Selecting a file starts the audit.</small>
+          <small className="text-slate-400 light:text-slate-600">Office Open XML resumes only, up to 1MB. Selecting a file starts the audit.</small>
         </span>
       </div>
       <p className="mt-3 text-sm font-semibold text-corsair-gold">

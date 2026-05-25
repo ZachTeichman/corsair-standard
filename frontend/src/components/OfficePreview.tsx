@@ -39,6 +39,14 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
         <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200 light:text-amber-800">
           Google Drive storage is configured but not active yet: {drive.error}
         </div>
+      ) : drive?.status === "pending" ? (
+        <div className="border-b border-corsair-bronze/20 bg-corsair-bronze/[0.08] px-4 py-2 text-xs text-corsair-gold light:text-corsair-bronze">
+          Audit complete. Google Drive storage is finishing in the background; local DOCX downloads are ready now.
+        </div>
+      ) : drive?.status === "disabled" ? (
+        <div className="border-b border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-slate-400 light:border-black/10 light:text-slate-600">
+          Google Drive storage is disabled for this environment. Local DOCX downloads are ready.
+        </div>
       ) : driveAnnotated ? (
         <div className="border-b border-corsair-bronze/20 bg-corsair-bronze/[0.08] px-4 py-2 text-xs text-corsair-gold light:text-corsair-bronze">
           Stored in Google Drive for {drive?.retention_hours ?? 24} hours.
