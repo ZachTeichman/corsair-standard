@@ -95,9 +95,6 @@ export function DashboardShell({ payload, theme, onThemeChange, onAnalyzed, onHo
               <a className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08] light:border-black/10 light:text-corsair-ink" href="/api/template/clean-docx">
                 Download Template
               </a>
-              <a className="rounded-xl border border-corsair-gold/40 bg-gradient-to-br from-corsair-gold to-corsair-bronze px-4 py-3 text-sm font-bold text-black shadow-bronze transition hover:brightness-110" href={payload?.document_links?.office_viewer_open ?? "#"} target="_blank" rel="noreferrer">
-                Open in Viewer
-              </a>
             </div>
           </header>
 
