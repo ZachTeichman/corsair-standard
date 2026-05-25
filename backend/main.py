@@ -31,6 +31,7 @@ from slowapi.util import get_remote_address
 # Make these names available in the wrapper module so UploadFile stays valid.
 slowapi_extension.UploadFile = UploadFile
 slowapi_extension.Any = Any
+slowapi_extension.BackgroundTasks = BackgroundTasks
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
