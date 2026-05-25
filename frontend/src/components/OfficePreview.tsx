@@ -14,7 +14,7 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
   const driveAnnotated = drive?.annotated?.web_view_link;
   const driveAnnotatedId = drive?.annotated?.id;
   const drivePreview = driveAnnotatedId ? `https://drive.google.com/file/d/${driveAnnotatedId}/preview` : null;
-  const embed = payload?.document_links?.office_viewer_embed ?? drivePreview;
+  const embed = drivePreview ?? payload?.document_links?.office_viewer_embed;
   const microsoftPreview = payload?.document_links?.office_viewer_open;
   const filename = payload?.source.filename ?? "Annotated DOCX";
   const annotation = payload?.annotation_summary;
@@ -86,7 +86,7 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-corsair-bronze">Preview pending</p>
               <h3 className="mt-3 text-3xl font-semibold text-white light:text-corsair-ink">Upload a DOCX</h3>
               <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
-                The preview uses Google Drive storage when available, then Microsoft Office Viewer when
+                The embedded preview uses Google Drive when available, then Microsoft Office Viewer when
                 the backend has a public URL. The annotated DOCX still downloads locally.
               </p>
             </div>
