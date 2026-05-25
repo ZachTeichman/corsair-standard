@@ -50,56 +50,56 @@
       "severity": "critical",
       "points": 9,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "header.dual_address",
       "severity": "critical",
       "points": 7,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "header.address_line_integrity",
       "severity": "major",
       "points": 5,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "header.contact_single_row",
       "severity": "major",
       "points": 5,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "section.corsair_structure_detected",
       "severity": "critical",
       "points": 10,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "section.required_presence",
       "severity": "critical",
       "points": 9,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "section.order",
       "severity": "major",
       "points": 5,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "section.label_spelling",
       "severity": "critical",
       "points": 10,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "section.labels_all_caps",
@@ -127,7 +127,7 @@
       "severity": "major",
       "points": 6,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "entry.date_right_tab",
@@ -148,7 +148,7 @@
       "severity": "major",
       "points": 7,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "entry.organization_bold",
@@ -165,11 +165,18 @@
       "category": "visual"
     },
     {
+      "id": "entry.separator_commas_plain",
+      "severity": "minor",
+      "points": 2,
+      "fixable": true,
+      "category": "visual"
+    },
+    {
       "id": "entry.location_present",
       "severity": "minor",
       "points": 4,
       "fixable": false,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "paragraph.no_consecutive_blank_lines",
@@ -180,35 +187,35 @@
     },
     {
       "id": "paragraph.no_leading_spaces",
-      "severity": "major",
+      "severity": "minor",
       "points": 2,
       "fixable": true,
       "category": "structural"
     },
     {
       "id": "paragraph.no_manual_alignment_spaces",
-      "severity": "major",
+      "severity": "minor",
       "points": 2,
       "fixable": true,
       "category": "structural"
     },
     {
       "id": "paragraph.tab_space_alignment_hacks",
-      "severity": "major",
+      "severity": "minor",
       "points": 2,
       "fixable": true,
       "category": "structural"
     },
     {
       "id": "paragraph.excessive_alignment_tabs",
-      "severity": "major",
+      "severity": "minor",
       "points": 2,
       "fixable": true,
       "category": "structural"
     },
     {
       "id": "paragraph.tabs_require_defined_stops",
-      "severity": "major",
+      "severity": "minor",
       "points": 2,
       "fixable": true,
       "category": "structural"
@@ -225,18 +232,18 @@
       "severity": "minor",
       "points": 2,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "header.contact_spacing_hack",
-      "severity": "major",
+      "severity": "minor",
       "points": 3,
       "fixable": true,
       "category": "structural"
     },
     {
       "id": "entry.date_alignment_spacing_hack",
-      "severity": "major",
+      "severity": "minor",
       "points": 3,
       "fixable": true,
       "category": "structural"
@@ -246,7 +253,7 @@
       "severity": "major",
       "points": 5,
       "fixable": true,
-      "category": "visual"
+      "category": "structural"
     },
     {
       "id": "typography.single_font_family",
@@ -268,6 +275,13 @@
       "points": 3,
       "fixable": true,
       "category": "visual"
+    },
+    {
+      "id": "text.spelling_suspected",
+      "severity": "minor",
+      "points": 0,
+      "fixable": false,
+      "category": "guidance"
     },
     {
       "id": "document.one_page_rendered",

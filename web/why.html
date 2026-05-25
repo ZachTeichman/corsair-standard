@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Why This Site — Corsair Standard</title>
+    <script>
+      (() => {
+        let theme = "dark";
+        try {
+          theme = window.localStorage.getItem("corsair-standard:theme") === "light" ? "light" : "dark";
+        } catch {
+          theme = "dark";
+        }
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
+    <link rel="stylesheet" href="/styles.css?v=20260524-theme" />
+  </head>
+  <body>
+    <main class="legal-page" aria-labelledby="legal-title">
+      <nav class="legal-nav" aria-label="Resource navigation">
+        <a class="brand-lockup brand-lockup-link" href="/app" aria-label="Back to compliance audit">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M12 2.8 20 6v5.4c0 4.8-3.2 8.7-8 9.9-4.8-1.2-8-5.1-8-9.9V6l8-3.2Z" />
+              <path d="M8 8.5 12 6l4 2.5M8 12l4 2.5 4-2.5" />
+            </svg>
+          </span>
+          <span>Corsair<br />Standard</span>
+        </a>
+        <div class="nav-actions">
+          <div class="theme-toggle" aria-label="Theme">
+            <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+          </div>
+          <a class="secondary-action" href="/app">Compliance audit</a>
+        </div>
+      </nav>
+
+      <article class="legal-document">
+        <p class="eyebrow">Resource</p>
+        <h1 id="legal-title">Why This Site Exists</h1>
+        <p class="legal-updated">Corsair Standard checks formatting mechanics, not whether a person is a good candidate.</p>
+
+        <h2>The Problem</h2>
+        <p>Resume formatting can look correct on the surface while being fragile underneath. A date may be pushed across the page with spaces. A section divider may be a typed line instead of a paragraph border. A bullet may look aligned until one word changes and the whole row shifts.</p>
+        <p>Those problems are hard to see in a PDF screenshot, but they matter when a resume is edited, reviewed, copied, or converted.</p>
+
+        <h2>What Corsair Standard Checks</h2>
+        <ul>
+          <li>Page margins, section order, section headings, and divider rules.</li>
+          <li>Right-aligned dates built with tab stops instead of space padding.</li>
+          <li>Bullet indentation, blank-line rhythm, and paragraph spacing.</li>
+          <li>Font family, font size, bold, italic, and visual hierarchy consistency.</li>
+          <li>Structural risks such as tables, text boxes, manual alignment, and unstable spacing.</li>
+        </ul>
+
+        <h2>What It Does Not Check</h2>
+        <p>Corsair Standard does not grade experience, rank applicants, predict recruiting outcomes, or decide whether a resume is good enough. It is deliberately narrow: the app checks whether the Word document is built cleanly.</p>
+
+        <h2>Why That Narrowness Matters</h2>
+        <p>A focused formatting audit is more useful than a vague resume score. When the app flags something, it should point to a concrete Word behavior you can fix: tabs, margins, spacing, comments, section labels, or typography.</p>
+      </article>
+    </main>
+    <script>
+      (() => {
+        const key = "corsair-standard:theme";
+        const apply = (theme, persist = true) => {
+          document.documentElement.classList.toggle("light", theme === "light");
+          document.documentElement.classList.toggle("dark", theme !== "light");
+          document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+            button.setAttribute("aria-pressed", button.getAttribute("data-theme-choice") === theme ? "true" : "false");
+          });
+          if (persist) {
+            try {
+              window.localStorage.setItem(key, theme);
+            } catch {
+              // Theme still changes for this page view if storage is unavailable.
+            }
+          }
+        };
+        let saved = document.documentElement.classList.contains("light") ? "light" : "dark";
+        try {
+          saved = window.localStorage.getItem(key) === "light" ? "light" : "dark";
+        } catch {
+          saved = document.documentElement.classList.contains("light") ? "light" : "dark";
+        }
+        apply(saved, false);
+        document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const theme = button.getAttribute("data-theme-choice") === "light" ? "light" : "dark";
+            apply(theme);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

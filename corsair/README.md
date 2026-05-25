@@ -21,7 +21,7 @@ It analyzes formatting compliance only — margins, tab stops, spacing, font con
 ## Stack
 
 - **Backend**: Python, FastAPI, pure XML analysis via `xml.etree.ElementTree`
-- **Frontend**: Vanilla JS, no framework
+- **Frontend**: React, TypeScript, Vite, and Tailwind in `frontend/src`
 - **DOCX parsing**: Direct Office Open XML (no python-docx for analysis)
 - **Preview**: Microsoft Office Online Viewer via Cloudflare tunnel
 
@@ -117,16 +117,24 @@ corsair/
   normalize.py       # Text normalization utilities
   render_validation.py  # Page count validation via Word/LibreOffice (macOS only)
 
+frontend/src/
+  App.tsx            # Active React app shell
+  components/        # Landing page, dashboard, upload, score, issue, and preview UI
+
 web/
-  index.html         # Main UI
-  app.js             # Frontend logic — upload, issue display, Office Viewer preview
-  style.css          # Styles
+  privacy.html       # Static legal page
+  terms.html         # Static legal page
+  security.html      # Static security page
+  why.html           # Static resource page
+  formatting-guide.html # Static resource page
+  styles.css         # Shared static-page styles
 
 server.py            # FastAPI server — upload, analyze, annotate, template endpoints
 var/uploads/         # Uploaded and working DOCX files (gitignored)
 templates/           # Canonical Corsair DOCX template
 rubrics/             # Rubric JSON definitions
-references/          # Reference resumes for calibration
+archived/legacy-vanilla-ui/ # Old vanilla UI, retained only as reference
+references/          # Historical prototypes and experiments
 ```
 
 ---

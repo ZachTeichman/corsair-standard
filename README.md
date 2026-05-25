@@ -12,7 +12,8 @@ It is not an ATS keyword tool, AI resume evaluator, candidate quality scorer, jo
 /corsair    Python DOCX parser, analyzer, annotator, and formatting rules
 /rubrics    JSON rubric configuration
 /templates  Clean Corsair DOCX template download
-/web        Legacy vanilla prototype, kept as a fallback during migration
+/web        Static legal and resource pages
+/archived   Historical prototypes not used by the active app
 ```
 
 ## Local Development
@@ -40,6 +41,9 @@ http://127.0.0.1:5173
 ```
 
 Vite proxies `/api/*` to `http://127.0.0.1:8000`.
+
+For the bundled local preview used in Codex, run `uvicorn server:app --reload`
+from the repo root and open `http://127.0.0.1:8000/app`.
 
 ## Office Viewer Preview
 
@@ -85,3 +89,9 @@ Out of scope for now:
 - semantic resume parsing
 - job matching
 - grammar checking
+
+## Context Hygiene For Codex
+
+Start future chats by reading `AGENTS.md`. The archived vanilla UI and
+experimental references are not part of the active product unless explicitly
+requested.

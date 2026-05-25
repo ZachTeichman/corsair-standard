@@ -28,128 +28,316 @@ ET.register_namespace("r", "http://schemas.openxmlformats.org/officeDocument/200
 
 
 RULE_LABELS: dict[str, str] = {
-    "document.margin_range": "Margins out of range",
-    "layout.no_tables": "Layout tables not allowed",
-    "layout.no_textboxes": "Text boxes not allowed",
+    "document.margin_range": "Page margins are off",
+    "layout.no_tables": "This layout uses a table",
+    "layout.no_textboxes": "This layout uses a text box",
     "header.name_centered_top_line": "Name looks centered but is fragile to edit",
     "header.dual_address": "Header needs exactly two city/state addresses",
-    "header.address_line_integrity": "Header address line is malformed",
-    "header.contact_single_row": "Contact info must be on one tab-separated row",
-    "header.contact_spacing_hack": "Header looks aligned but is built with manual spacing",
-    "section.corsair_structure_detected": "Corsair section structure not detected",
+    "header.address_line_integrity": "One header address looks wrong",
+    "header.contact_single_row": "Contact line may shift when edited",
+    "header.contact_spacing_hack": "Header is lined up with spaces",
+    "section.corsair_structure_detected": "Resume sections could not be read clearly",
     "section.required_presence": "Required section missing",
     "section.order": "Sections out of order",
     "section.label_spelling": "Section heading has a typo",
-    "section.labels_all_caps": "Section label must be all caps",
-    "section.headers_bold": "Section header must be bold",
-    "section.divider_rule": "Section header missing bottom border rule",
+    "section.labels_all_caps": "Section heading needs all caps",
+    "section.headers_bold": "Section heading needs bold",
+    "section.divider_rule": "Section heading needs an underline",
     "section.reverse_chronological_order": "Entry is out of chronological order",
-    "entry.date_right_tab": "Date looks aligned but is fragile to edit",
+    "entry.date_right_tab": "Date is not anchored to the right edge",
     "entry.date_range_en_dash": "Date range uses the wrong dash",
-    "entry.date_range_valid": "Date range does not make sense",
-    "entry.organization_bold": "Organization name must be bold",
-    "entry.role_italic": "Role/title must be italicized",
+    "entry.date_range_valid": "Date range looks wrong",
+    "entry.organization_bold": "Organization name needs bold",
+    "entry.role_italic": "Role/title needs italics",
+    "entry.separator_commas_plain": "Comma has extra styling",
     "entry.location_present": "Entry line missing City, ST location",
-    "entry.date_alignment_spacing_hack": "Date alignment is being faked with spaces",
+    "entry.date_alignment_spacing_hack": "Date is lined up with spaces",
     "paragraph.no_consecutive_blank_lines": "Consecutive blank lines",
-    "paragraph.no_leading_spaces": "Leading spaces used instead of indent",
+    "paragraph.no_leading_spaces": "Line starts with typed spaces",
     "paragraph.no_manual_alignment_spaces": "Text is lined up with the spacebar",
     "paragraph.tab_space_alignment_hacks": "Text looks aligned but uses tabs mixed with spaces",
     "paragraph.excessive_alignment_tabs": "Text is pushed into place with repeated tabs",
-    "paragraph.tabs_require_defined_stops": "Tab was used without a saved tab stop",
-    "paragraph.right_tab_consistency": "Right tab stop position inconsistent",
-    "paragraph.body_alignment_consistency": "Bullet alignment inconsistent",
-    "bullet.indent_consistency": "First-level bullet indent is off",
+    "paragraph.tabs_require_defined_stops": "Tab spacing is not locked in",
+    "paragraph.right_tab_consistency": "Dates do not share the same right edge",
+    "paragraph.body_alignment_consistency": "Numbered bullet is justified",
+    "bullet.indent_consistency": "First-level bullet indent differs from template",
     "typography.single_font_family": "Multiple font families detected",
     "typography.body_font_size_consistency": "Body font size inconsistent",
     "typography.no_unauthorized_inline_emphasis": "Unauthorized bold/italic in bullet",
+    "text.spelling_suspected": "Possible spelling issue",
 }
 
 FIX_GUIDANCE: dict[str, str] = {
-    "document.margin_range": "Set all page margins to between 0.5in and 1.0in.",
-    "layout.no_tables": "Remove layout tables and rebuild content as normal paragraphs.",
-    "layout.no_textboxes": "Move text box content into regular document paragraphs.",
-    "header.name_centered_top_line": "Keep the name visually centered, but center it with Word's paragraph alignment or a saved center tab stop instead of manual spacing.",
+    "document.margin_range": "In Word, set each page margin between 0.5in and 1.0in.",
+    "layout.no_tables": "Move the resume text out of the table and into regular paragraphs.",
+    "layout.no_textboxes": "Move this text out of the text box and into the normal page body.",
+    "header.name_centered_top_line": "Use Word's Center Align button for the name instead of spacing it by hand.",
     "header.dual_address": "Include exactly two city/state addresses in the header contact row.",
-    "header.address_line_integrity": "Keep both location lines cleanly separated: left city/state/ZIP on the left and right city/state/ZIP on the right, without stray characters or wrapped ZIP codes.",
-    "header.contact_single_row": "Keep the same visual layout, but use Word tab stops or paragraph alignment for the left, center, and right contact fields instead of lining things up by eye.",
-    "header.contact_spacing_hack": "Delete the extra spaces between contact fields and use Word tab stops or paragraph alignment to keep the same visual layout.",
-    "section.corsair_structure_detected": "Restore canonical Corsair section headers.",
+    "header.address_line_integrity": "Separate the two locations cleanly so each address stays on its own side of the header.",
+    "header.contact_single_row": "Put the contact info on one clean row and use Word alignment, not hand-spaced text.",
+    "header.contact_spacing_hack": "Delete the extra spaces and use Word alignment or tabs so the header does not shift.",
+    "section.corsair_structure_detected": "Use the clean Corsair template section headings, then rerun the audit.",
     "section.required_presence": "Add the missing required section.",
-    "section.order": "Reorder sections to match the required Corsair sequence.",
-    "section.label_spelling": "Fix the section heading text so it exactly matches the required heading.",
-    "section.labels_all_caps": "Make the section label fully uppercase.",
-    "section.headers_bold": "Apply bold formatting to this section header.",
-    "section.divider_rule": "Add a bottom border rule directly beneath this section header.",
+    "section.order": "Move the sections into the required Corsair order.",
+    "section.label_spelling": "Rename the section heading to match the template exactly.",
+    "section.labels_all_caps": "Make the whole section heading uppercase.",
+    "section.headers_bold": "Select the section heading and turn on Bold.",
+    "section.divider_rule": "Add the horizontal line under this section heading.",
     "section.reverse_chronological_order": "Move this entry so dates run newest to oldest within this section. Ongoing Present entries should appear before completed entries.",
-    "entry.date_right_tab": "Delete the spaces before the date and use a right-aligned tab stop so all dates snap to the same right edge.",
+    "entry.date_right_tab": "Delete the spacing before the date and use the template's right-aligned date position.",
     "entry.date_range_en_dash": "Replace the dash between dates with an en dash: January 2026 – Present.",
     "entry.date_range_valid": "Correct the date range so the end date is valid and comes after the start date.",
-    "entry.organization_bold": "Bold the organization or institution name at the start of the entry line.",
-    "entry.role_italic": "Italicize the role, title, or program descriptor before the date tab.",
-    "entry.location_present": "Add City, ST before the date on this entry line.",
-    "entry.date_alignment_spacing_hack": "Delete the space padding before the date and use a right-aligned tab stop.",
+    "entry.organization_bold": "Select the organization or school name at the start of the line and turn on Bold.",
+    "entry.role_italic": "Select the role, title, or program name and turn on Italics.",
+    "entry.separator_commas_plain": "Select the comma and turn off Bold and Italics.",
+    "entry.location_present": "Add the location in City, ST format before the date.",
+    "entry.date_alignment_spacing_hack": "Delete the extra spaces before the date and use the template's right-aligned date position.",
     "paragraph.no_consecutive_blank_lines": "Remove the extra blank paragraph. Use paragraph spacing instead.",
-    "paragraph.no_leading_spaces": "Delete the leading spaces. Use paragraph indent settings instead.",
-    "paragraph.no_manual_alignment_spaces": "Delete the repeated spaces. If the text needs to align, use Word's tab stops, paragraph alignment, or indentation instead.",
-    "paragraph.tab_space_alignment_hacks": "Delete the spaces around the tabs. Use one tab with a saved tab stop so the line stays aligned after edits.",
-    "paragraph.excessive_alignment_tabs": "Replace the repeated tab presses with one tab and a saved tab stop.",
-    "paragraph.tabs_require_defined_stops": "If this tab is meant to align text, add a tab stop in Word's ruler or paragraph settings. Otherwise Word may shift the text unpredictably.",
-    "paragraph.right_tab_consistency": "Use the same right tab stop position on all date-aligned lines.",
-    "paragraph.body_alignment_consistency": "Set all bullet paragraphs to the same alignment.",
+    "paragraph.no_leading_spaces": "Delete the typed spaces at the start of the line. Use Word indentation instead.",
+    "paragraph.no_manual_alignment_spaces": "Delete the repeated spaces and use Word alignment, tabs, or indentation instead.",
+    "paragraph.tab_space_alignment_hacks": "Delete the extra spaces around the tab so the line does not shift later.",
+    "paragraph.excessive_alignment_tabs": "Replace the repeated tab presses with the template's normal spacing.",
+    "paragraph.tabs_require_defined_stops": "Use the template's saved tab position, or the spacing may move when edited.",
+    "paragraph.right_tab_consistency": "Make this date use the same right edge as the other dates.",
+    "paragraph.body_alignment_consistency": "Click that bullet paragraph and choose Left Align instead of Justify.",
     "bullet.indent_consistency": "Set first-level bullets to a 0.25in bullet position with text starting at 0.5in.",
-    "typography.single_font_family": "Select all text and apply one font family throughout.",
-    "typography.body_font_size_consistency": "Normalize all body text to one size between 10pt and 12pt.",
+    "typography.single_font_family": "Select all text and apply one font throughout.",
+    "typography.body_font_size_consistency": "Make the body text one consistent size between 10pt and 12pt.",
     "typography.no_unauthorized_inline_emphasis": "Remove bold or italic from this bullet unless the visual layout intentionally calls for it.",
+    "text.spelling_suspected": "Review this word manually before changing it. Names, companies, and industry terms may be intentional.",
 }
 
 COMMENT_EXPLANATIONS: dict[str, str] = {
-    "header.name_centered_top_line": (
-        "It may look centered now, but it can shift when header text or margins change."
+    "annotation.focused_summary": (
+        "This copy only marks the most useful examples so the resume does not get flooded with comments."
     ),
+    "document.margin_range": "The page margins are outside the template range, so the resume may not fit or line up correctly.",
+    "layout.no_tables": "This resume uses a table to place content. Tables can make the resume hard to edit cleanly.",
+    "layout.no_textboxes": "This text is inside a floating text box. Text boxes can move around or hide content when edited.",
+    "header.name_centered_top_line": (
+        "The name may look centered now, but it can move when the header or margins change."
+    ),
+    "header.dual_address": "The header should show two clean city/state locations.",
     "header.contact_single_row": (
-        "The contact line may look close visually, but the fields can drift when phone, email, or location text changes."
+        "The contact line may look fine now, but the pieces can drift when the phone, email, or location changes."
     ),
     "header.address_line_integrity": (
-        "The header has two addresses, but one location is glued to stray characters or may be wrapping onto the wrong side."
+        "One location in the header has extra characters, wraps oddly, or is attached to the wrong side."
     ),
     "header.contact_spacing_hack": (
-        "The header may look aligned now, but extra spaces can break when you edit phone, email, or location text."
+        "The header is lined up with typed spaces. It can shift when someone edits the contact info."
     ),
+    "section.corsair_structure_detected": "The checker cannot clearly read the required resume sections.",
+    "section.required_presence": "A required section is missing from the resume.",
+    "section.order": "The sections are in a different order than the template expects.",
     "section.label_spelling": (
-        "The section is present, but the heading text does not exactly match the required wording."
+        "The section is there, but the heading text does not match the template exactly."
     ),
+    "section.labels_all_caps": "This section heading should be written in all capital letters.",
+    "section.headers_bold": "This section heading should be bold like the others.",
+    "section.divider_rule": "This section heading should have the horizontal line underneath it.",
     "paragraph.no_manual_alignment_spaces": (
-        "This line is using repeated spaces to position text, which can break when the line changes."
+        "This line is lined up with repeated spaces. It can move around when the text changes."
     ),
+    "paragraph.no_leading_spaces": "This line starts with typed spaces instead of Word indentation.",
     "paragraph.tab_space_alignment_hacks": (
-        "This line mixes tabs with extra spaces to make text appear aligned."
+        "This line mixes a tab with extra spaces. It may look okay now, but it can shift later."
     ),
     "paragraph.excessive_alignment_tabs": (
-        "This line uses repeated tab presses to push text into place."
+        "This line uses several tab presses to push text into place."
     ),
     "paragraph.tabs_require_defined_stops": (
         "This line uses a tab, but Word has not been told exactly where that tab should land."
     ),
+    "paragraph.right_tab_consistency": "This date does not land on the same right edge as the other dates.",
     "entry.date_right_tab": (
-        "The date may look aligned now, but it is not attached to a stable right edge."
+        "The date may look aligned now, but it is not locked to the same right edge as the other dates."
     ),
     "entry.date_range_en_dash": (
-        "Date ranges should use the longer en dash character, not a regular keyboard hyphen."
+        "Date ranges should use the longer dash, not the short keyboard hyphen."
     ),
     "entry.date_range_valid": (
-        "The date range is either backwards or uses an invalid end date."
+        "The date range is backwards or has an end date that does not make sense."
     ),
     "entry.date_alignment_spacing_hack": (
-        "The date is being pushed into position with spaces or mixed tab spacing."
+        "The date is pushed into place with spaces instead of the template's date alignment."
     ),
-    "bullet.indent_consistency": (
-        "The bullet dot or the text after it is not using the expected first-level bullet indent."
-    ),
+    "entry.organization_bold": "The organization or school name should stand out in bold.",
+    "entry.role_italic": "The role, title, or program name should be italicized.",
+    "entry.separator_commas_plain": "The comma should stay plain. It should not inherit bold or italics from nearby words.",
+    "entry.location_present": "This entry needs a City, ST location before the date.",
+    "bullet.indent_consistency": "The bullet dot or the text after it starts at a different ruler position than the template.",
+    "paragraph.body_alignment_consistency": "This bullet is set to Justify, so Word stretches the text across the line like a newspaper column. The other bullets are normal left-aligned text.",
     "section.reverse_chronological_order": (
-        "This entry appears below an older entry even though its date should place it higher in the same section."
+        "This entry is below an older entry, but newer items should come first in the same section."
     ),
+    "typography.single_font_family": "More than one font is used in the resume.",
+    "typography.body_font_size_consistency": "The body text uses more than one font size.",
+    "typography.no_unauthorized_inline_emphasis": "This bullet has bold or italic text where the template usually expects plain text.",
+    "text.spelling_suspected": "This word may be misspelled. Check it manually before changing names, company terms, or abbreviations.",
 }
+
+
+MAX_DOCX_COMMENTS = 15
+FOCUSED_SUMMARY_RULE_ID = "annotation.focused_summary"
+
+
+def count_docx_comments(path: str | Path) -> int:
+    path = Path(path).resolve()
+    with ZipFile(path, "r") as archive:
+        try:
+            comments_xml = archive.read("word/comments.xml")
+        except KeyError:
+            return 0
+    root = ET.fromstring(comments_xml)
+    return sum(1 for element in root.iter() if element.tag.split("}")[-1] == "comment")
+
+
+def _strip_existing_comment_markup(element: ET.Element) -> None:
+    for child in list(element):
+        if child.tag in {_w("commentRangeStart"), _w("commentRangeEnd")}:
+            element.remove(child)
+            continue
+
+        _strip_existing_comment_markup(child)
+
+        if child.tag == _w("r"):
+            for grandchild in list(child):
+                if grandchild.tag == _w("commentReference"):
+                    child.remove(grandchild)
+            meaningful_children = [grandchild for grandchild in list(child) if grandchild.tag != _w("rPr")]
+            if not meaningful_children:
+                element.remove(child)
+
+
+def _rule_comment_cap(violation: dict[str, Any]) -> int:
+    category = violation.get("category")
+    rule_id = str(violation.get("rule_id") or "")
+    if category == "structural":
+        return 1
+    if rule_id.startswith(("section.", "header.", "layout.", "document.")):
+        return 1
+    if category == "visual":
+        return 3
+    return 2
+
+
+def _comment_priority(violation: dict[str, Any]) -> int:
+    severity = violation.get("severity")
+    category = violation.get("category")
+    if severity == "critical":
+        return 0
+    if category == "visual":
+        return 1
+    if severity == "major":
+        return 2
+    if category == "structural":
+        return 3
+    return 4
+
+
+def _focused_summary_violation(
+    *,
+    total_count: int,
+    shown_issue_count: int,
+    suppressed_count: int,
+    suppressed_by_rule: dict[str, int],
+) -> dict[str, Any]:
+    return {
+        "rule_id": FOCUSED_SUMMARY_RULE_ID,
+        "severity": "minor",
+        "points": 0,
+        "category": "annotation",
+        "message": (
+            f"Focused annotation shows {shown_issue_count} representative comments. "
+            f"{suppressed_count} repeated or lower-priority issues remain in the dashboard."
+        ),
+        "evidence": {
+            "grouped_comment": True,
+            "paragraph": {"index": 0},
+            "total_count": total_count,
+            "shown_issue_count": shown_issue_count,
+            "suppressed_count": suppressed_count,
+            "suppressed_by_rule": suppressed_by_rule,
+        },
+}
+
+
+def _focused_comment_violation(violation: dict[str, Any]) -> dict[str, Any]:
+    focused = copy.deepcopy(violation)
+    evidence = focused.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+        focused["evidence"] = evidence
+    evidence["focused_comment"] = True
+    return focused
+
+
+def curate_docx_comment_violations(
+    violations: list[dict[str, Any]],
+    *,
+    max_comments: int = MAX_DOCX_COMMENTS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Select a focused, non-overwhelming set of Word comments.
+
+    The analyzer still returns every violation to the dashboard. This only limits
+    the Word-native comments embedded in the annotated DOCX.
+    """
+    if max_comments < 1:
+        max_comments = 1
+    if not violations:
+        return [], {
+            "mode": "focused",
+            "total_issues": 0,
+            "comment_count": 0,
+            "shown_issue_count": 0,
+            "suppressed_count": 0,
+            "max_comments": max_comments,
+            "suppressed_by_rule": {},
+        }
+
+    budget = max_comments - 1 if max_comments > 1 else 1
+    selected: list[dict[str, Any]] = []
+    selected_by_rule: dict[str, int] = {}
+    suppressed_by_rule: dict[str, int] = {}
+
+    ordered_violations = [
+        violation
+        for _, violation in sorted(
+            enumerate(violations),
+            key=lambda item: (_comment_priority(item[1]), item[0]),
+        )
+    ]
+
+    for violation in ordered_violations:
+        rule_id = str(violation.get("rule_id") or "formatting.issue")
+        cap = _rule_comment_cap(violation)
+        if selected_by_rule.get(rule_id, 0) >= cap or len(selected) >= budget:
+            suppressed_by_rule[rule_id] = suppressed_by_rule.get(rule_id, 0) + 1
+            continue
+        selected.append(_focused_comment_violation(violation))
+        selected_by_rule[rule_id] = selected_by_rule.get(rule_id, 0) + 1
+
+    suppressed_count = len(violations) - len(selected)
+    curated = selected
+    if suppressed_count > 0:
+        summary = _focused_summary_violation(
+            total_count=len(violations),
+            shown_issue_count=len(selected),
+            suppressed_count=suppressed_count,
+            suppressed_by_rule=suppressed_by_rule,
+        )
+        curated = [summary, *selected]
+
+    return curated, {
+        "mode": "focused",
+        "total_issues": len(violations),
+        "comment_count": len(curated),
+        "shown_issue_count": len(selected),
+        "suppressed_count": suppressed_count,
+        "max_comments": max_comments,
+        "suppressed_by_rule": suppressed_by_rule,
+    }
 
 
 def _first_evidence_paragraph(violation: dict[str, Any]) -> dict[str, Any]:
@@ -189,6 +377,14 @@ def _evidence_detail(violation: dict[str, Any]) -> str:
             details.append(f"text starts at {found_text}, expected {expected_text}")
         if details:
             return "Found: " + "; ".join(details) + "."
+
+    if rule_id == "paragraph.body_alignment_consistency":
+        found = paragraph.get("alignment") or evidence.get("found_alignment")
+        expected = paragraph.get("expected_alignment") or evidence.get("expected_alignment")
+        if found and expected:
+            found_label = "Justify" if found == "both" else str(found).title()
+            expected_label = str(expected).title()
+            return f"Found: paragraph alignment is {found_label}. Expected: {expected_label}."
 
     if rule_id in {
         "paragraph.tab_space_alignment_hacks",
@@ -270,13 +466,26 @@ def _evidence_detail(violation: dict[str, Any]) -> str:
         if date_text and section:
             return f"Found: {date_text} is out of order in {section}."
 
+    if rule_id == "text.spelling_suspected":
+        word = paragraph.get("word")
+        suggestion = paragraph.get("suggestion")
+        if word and suggestion:
+            return f"Found: {word}. Possible: {suggestion}."
+
     return ""
 
 
 def _combine_explanation_and_detail(rule_id: str, explanation: str, detail: str) -> str:
     if not detail:
         return explanation
-    if rule_id in {"entry.date_range_valid", "section.label_spelling", "section.reverse_chronological_order"}:
+    if rule_id in {
+        "bullet.indent_consistency",
+        "entry.date_range_valid",
+        "paragraph.body_alignment_consistency",
+        "section.label_spelling",
+        "section.reverse_chronological_order",
+        "text.spelling_suspected",
+    }:
         return f"{explanation} {detail}"
     clean_detail = detail
     if clean_detail.startswith("Found: "):
@@ -303,6 +512,23 @@ def _attr(element: ET.Element, name: str, value: str) -> None:
 
 def _comment_lines(violation: dict[str, Any]) -> list[str]:
     rule_id = str(violation.get("rule_id") or "formatting.issue")
+    if rule_id == FOCUSED_SUMMARY_RULE_ID:
+        evidence = violation.get("evidence") or {}
+        shown = evidence.get("shown_issue_count")
+        suppressed = evidence.get("suppressed_count")
+        if not isinstance(shown, int):
+            shown = 0
+        if not isinstance(suppressed, int):
+            suppressed = 0
+        return [
+            "Focused annotation mode",
+            "",
+            f"This DOCX shows {shown} representative comments and leaves {suppressed} repeated or lower-priority issues summarized in the web dashboard.",
+            "",
+            "Recommendation:",
+            "Use the full issue list on the site for diagnosis. If the structure feels noisy, start from the clean Corsair template and transfer content into it.",
+        ]
+
     label = RULE_LABELS.get(rule_id, rule_id)
     explanation = COMMENT_EXPLANATIONS.get(rule_id, str(violation.get("message") or "Formatting issue detected."))
     guidance = FIX_GUIDANCE.get(rule_id, "Review and correct this formatting issue.")
@@ -592,10 +818,18 @@ def _paragraph_indices(violation: dict[str, Any]) -> list[int]:
     return deduped
 
 
+def estimate_docx_comment_count(violations: list[dict[str, Any]]) -> int:
+    return sum(len(_paragraph_indices(violation)) for violation in violations)
+
+
 def _build_paragraph_comment_map(violations: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
     mapping: dict[int, list[dict[str, Any]]] = {}
     for violation in violations:
-        for index in _paragraph_indices(violation):
+        indices = _paragraph_indices(violation)
+        evidence = violation.get("evidence") or {}
+        if isinstance(evidence, dict) and evidence.get("focused_comment") is True:
+            indices = indices[:1]
+        for index in indices:
             mapping.setdefault(index, []).append(violation)
     return mapping
 
@@ -675,7 +909,8 @@ def annotate_docx(
     if not body_paragraphs:
         raise ValueError("word/document.xml has no body paragraphs.")
 
-    comments_root = _ensure_comments_root(entries.get("word/comments.xml"))
+    _strip_existing_comment_markup(document_root)
+    comments_root = _ensure_comments_root(None)
     next_id = _next_comment_id(comments_root)
     date_str = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     paragraph_map = _build_paragraph_comment_map(violations)

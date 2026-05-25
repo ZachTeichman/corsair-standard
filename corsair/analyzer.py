@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from .docx_parser import DocumentModel, ParagraphModel, parse_docx
 from .render_validation import get_render_validation_status, validate_rendered_page_count
 from .rubric import load_rubric
+from .spelling import find_spelling_issues
 
 
 SECTION_PATTERN = re.compile(r"^[A-Z][A-Z &/]{3,}$")
@@ -114,6 +115,43 @@ def _apply_rubric_to_violations(
         item["fixable"] = rule.get("fixable", item.get("fixable", False))
         normalized.append(item)
     return normalized
+
+
+def _structure_warning(violations: List[Dict[str, Any]], structural_score: int) -> Dict[str, Any]:
+    structural_violations = [item for item in violations if item.get("category") == "structural"]
+    missing_canonical_structure = any(
+        item.get("rule_id") == "section.corsair_structure_detected" for item in structural_violations
+    )
+
+    if missing_canonical_structure or structural_score < 60:
+        level = "critical"
+        title = "Corsair structure is not reliable."
+    elif structural_score < 80:
+        level = "warning"
+        title = "Structure risk detected."
+    elif structural_violations:
+        level = "notice"
+        title = "Structure cleanup recommended."
+    else:
+        level = "ok"
+        title = "Structure looks stable."
+
+    if level == "ok":
+        message = "The document exposes the expected Corsair structure and stable formatting controls."
+    else:
+        message = (
+            "Structural issues affect edit stability and rule compliance. Fix these before polishing visual details."
+        )
+
+    return {
+        "level": level,
+        "title": title,
+        "message": message,
+        "legacy_template_detected": False,
+        "missing_canonical_structure": missing_canonical_structure,
+        "structural_issue_count": len(structural_violations),
+        "legacy_rule_hits": [],
+    }
 
 
 def _detect_sections(document: DocumentModel, allowed_sections: set[str]) -> List[Dict[str, Any]]:
@@ -398,6 +436,36 @@ def _role_italic_target_ranges(paragraph: ParagraphModel) -> List[Dict[str, Any]
     return ranges
 
 
+def _styled_separator_comma_ranges(paragraph: ParagraphModel) -> List[Dict[str, Any]]:
+    before_date_end = paragraph.text.find("\t")
+    if before_date_end < 0:
+        before_date_end = len(paragraph.text)
+
+    ranges: List[Dict[str, Any]] = []
+    cursor = 0
+    for run in paragraph.runs:
+        run_start = cursor
+        run_end = cursor + len(run.text)
+        cursor = run_end
+        if run_start >= before_date_end or not (run.bold or run.italic):
+            continue
+
+        for offset, char in enumerate(run.text):
+            index = run_start + offset
+            if index >= before_date_end:
+                break
+            if char != ",":
+                continue
+            styles = []
+            if run.bold:
+                styles.append("bold")
+            if run.italic:
+                styles.append("italic")
+            ranges.append({"start": index, "end": index + 1, "text": ",", "styles": styles})
+
+    return ranges
+
+
 def _wrong_date_dash_target_ranges(paragraph: ParagraphModel) -> List[Dict[str, Any]]:
     ranges: List[Dict[str, Any]] = []
     for match in DATE_RANGE_WITH_WRONG_DASH_PATTERN.finditer(paragraph.text):
@@ -547,6 +615,27 @@ def _font_size_summary(document: DocumentModel) -> Dict[str, Any]:
         "fonts": dict(fonts),
         "sizes_pt": dict(sizes),
     }
+
+
+def _candidate_name_summary(document: DocumentModel, detected_sections: List[Dict[str, Any]]) -> Dict[str, str] | None:
+    first_section_index = min(
+        (section["paragraph_index"] for section in detected_sections if isinstance(section.get("paragraph_index"), int)),
+        default=min(len(document.paragraphs), 8),
+    )
+    header_limit = max(1, min(first_section_index, 8))
+    for paragraph in document.paragraphs[:header_limit]:
+        text = " ".join(paragraph.text.replace("\t", " ").split())
+        if not text or "@" in text or DATE_PATTERN.search(text) or _header_city_state_matches(text):
+            continue
+        if any(char.isdigit() for char in text):
+            continue
+        words = text.split()
+        if not 2 <= len(words) <= 5:
+            continue
+        if not all(any(char.isalpha() for char in word) for word in words):
+            continue
+        return {"full_name": text, "first_name": words[0]}
+    return None
 
 
 def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
@@ -803,8 +892,12 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 "paragraph.body_alignment_consistency",
                 "minor",
                 1,
-                "Some numbered bullet paragraphs use full justification while peers do not.",
-                {"paragraphs": [_paragraph_summary(p) for p in justified_numbered[:8]]},
+                "One bullet paragraph is set to Justify, so Word stretches the text across the line instead of keeping it normally left-aligned.",
+                {
+                    "expected_alignment": "left",
+                    "found_alignment": "justify",
+                    "paragraphs": [_paragraph_summary(p) | {"expected_alignment": "left"} for p in justified_numbered[:8]],
+                },
             )
         )
 
@@ -818,7 +911,7 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                 "bullet.indent_consistency",
                 "major",
                 4,
-                "First-level bullets must use the 0.25in bullet position and 0.5in text indent.",
+                "First-level bullets must use a 0.25in bullet position with text starting at 0.50in.",
                 {
                     "expected": {
                         "bullet_position_inches": round(expected_bullet_position / TWIPS_PER_INCH, 3),
@@ -1080,6 +1173,7 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
     wrong_date_dashes: List[tuple[ParagraphModel, List[Dict[str, Any]]]] = []
     unbold_orgs = []
     missing_italic_roles: List[tuple[ParagraphModel, List[Dict[str, Any]]]] = []
+    styled_separator_commas: List[tuple[ParagraphModel, List[Dict[str, Any]]]] = []
     missing_locations = []
     for entry in entries:
         if entry.tab_count != 1 or not _has_expected_right_tab(entry, expected_right_tab_position):
@@ -1092,6 +1186,9 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
         role_targets = _role_italic_target_ranges(entry) if _expects_italic_role(entry) else []
         if role_targets:
             missing_italic_roles.append((entry, role_targets))
+        comma_targets = _styled_separator_comma_ranges(entry)
+        if comma_targets:
+            styled_separator_commas.append((entry, comma_targets))
         before_date = entry.text.split("\t", 1)[0]
         if not CITY_STATE_PATTERN.search(before_date):
             missing_locations.append(entry)
@@ -1149,6 +1246,22 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
                     "paragraphs": [
                         _paragraph_summary(paragraph, target_ranges=target_ranges)
                         for paragraph, target_ranges in missing_italic_roles[:8]
+                    ]
+                },
+            )
+        )
+
+    if styled_separator_commas:
+        violations.append(
+            _make_violation(
+                "entry.separator_commas_plain",
+                "minor",
+                2,
+                "Separator commas in entry lines must be plain text, not bold or italic.",
+                {
+                    "paragraphs": [
+                        _paragraph_summary(paragraph, target_ranges=target_ranges)
+                        for paragraph, target_ranges in styled_separator_commas[:8]
                     ]
                 },
             )
@@ -1213,27 +1326,60 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
             )
         )
 
+    spelling_issues = find_spelling_issues(document, excluded_paragraph_indices=section_indices)
+    if spelling_issues:
+        violations.append(
+            _make_violation(
+                "text.spelling_suspected",
+                "minor",
+                0,
+                "Possible spelling issue detected. Review manually before changing.",
+                {
+                    "paragraphs": [
+                        _paragraph_summary(
+                            item["paragraph"],
+                            target_ranges=item["findings"][0]["target_ranges"],
+                        )
+                        | {
+                            "spelling": item["findings"],
+                            "word": item["findings"][0]["word"],
+                            "suggestion": item["findings"][0]["suggestion"],
+                        }
+                        for item in spelling_issues[:8]
+                    ],
+                    "review_only": True,
+                },
+            )
+        )
+
     violations = _apply_rubric_to_violations(violations, rules_by_id)
     structural_penalty = sum(item["points"] for item in violations if item.get("category") == "structural")
     visual_penalty = sum(item["points"] for item in violations if item.get("category") == "visual")
     total_penalty = structural_penalty + visual_penalty
     visual_compliance_score = max(0, 100 - visual_penalty)
     structural_quality_score = max(0, 100 - structural_penalty)
-    score = round(
+    structural_risk = _structure_warning(violations, structural_quality_score)
+    weighted_score = round(
         (visual_compliance_score * VISUAL_SCORE_WEIGHT)
         + (structural_quality_score * STRUCTURAL_SCORE_WEIGHT)
     )
+    if structural_risk["missing_canonical_structure"]:
+        score = min(weighted_score, 59)
+    else:
+        score = weighted_score
 
     return {
         "rubric_version": rubric["rubric_version"],
         "source_path": str(path),
         "score": score,
         "overall_score": score,
+        "weighted_score_before_structural_cap": weighted_score,
         "visual_compliance_score": visual_compliance_score,
         "structural_quality_score": structural_quality_score,
         "total_penalty": total_penalty,
         "visual_penalty": visual_penalty,
         "structural_penalty": structural_penalty,
+        "structural_risk": structural_risk,
         "score_weights": {
             "visual": VISUAL_SCORE_WEIGHT,
             "structural": STRUCTURAL_SCORE_WEIGHT,
@@ -1243,6 +1389,7 @@ def analyze_docx(path: str | Path, render: bool = False) -> Dict[str, Any]:
             "table_count": document.table_count,
             "textbox_count": document.textbox_count,
             "page_margins_inches": document.page_margins,
+            "candidate_name": _candidate_name_summary(document, detected_sections),
             "detected_sections": detected_sections,
             "render_validation": render_validation,
         },

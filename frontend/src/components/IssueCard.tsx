@@ -32,9 +32,10 @@ export function IssueCard({ violation, links }: IssueCardProps) {
         >
           Open in Viewer <ExternalLink className="h-3.5 w-3.5" />
         </LinkButton>
-        <span className="text-xs text-slate-500">{violation.points ?? 0} point impact</span>
+        <span className="text-xs text-slate-500">
+          {(violation.points ?? 0) === 0 ? "Review only" : `${violation.points ?? 0} point impact`}
+        </span>
       </div>
     </article>
   );
 }
-

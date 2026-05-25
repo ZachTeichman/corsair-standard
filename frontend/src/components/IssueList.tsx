@@ -13,7 +13,7 @@ export function IssueList({ payload }: IssueListProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap gap-2 border-b border-white/10 px-4 py-3">
+      <div className="flex flex-wrap gap-2 border-b border-white/10 px-4 py-3 light:border-black/10">
         <Tab label="All Issues" value={violations.length} active />
         <Tab label="Critical" value={counts.critical} />
         <Tab label="Major" value={counts.major} />
@@ -25,7 +25,7 @@ export function IssueList({ payload }: IssueListProps) {
             <IssueCard key={`${violation.rule_id}-${index}`} violation={violation} links={payload?.document_links} />
           ))
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-400">
+          <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-400 light:border-black/10 light:text-slate-600">
             Upload a DOCX to generate formatting suggestions and Word-native comments.
           </div>
         )}
@@ -38,11 +38,10 @@ function Tab({ label, value, active = false }: { label: string; value: number; a
   return (
     <span
       className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-        active ? "bg-corsair-bronze/15 text-corsair-gold" : "bg-white/[0.04] text-slate-400"
+        active ? "bg-corsair-bronze/15 text-corsair-gold light:text-corsair-ink" : "bg-white/[0.04] text-slate-400 light:bg-black/[0.04] light:text-slate-600"
       }`}
     >
       {label} <strong className="ml-1">{value}</strong>
     </span>
   );
 }
-

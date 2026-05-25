@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security & Data Handling — Corsair Standard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="legal-page" aria-labelledby="legal-title">
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a class="brand-lockup brand-lockup-link" href="/" aria-label="Corsair Standard home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M12 2.8 20 6v5.4c0 4.8-3.2 8.7-8 9.9-4.8-1.2-8-5.1-8-9.9V6l8-3.2Z" />
+              <path d="M8 8.5 12 6l4 2.5M8 12l4 2.5 4-2.5" />
+            </svg>
+          </span>
+          <span>Corsair<br />Standard</span>
+        </a>
+        <a class="secondary-action" href="/app">Open audit</a>
+      </nav>
+
+      <article class="legal-document">
+        <p class="eyebrow">Corsair Standard</p>
+        <h1 id="legal-title">Security & Data Handling</h1>
+
+        <h2>How Your Resume Is Processed</h2>
+        <ol>
+          <li>Your file is received over HTTPS and saved temporarily with a randomized identifier.</li>
+          <li>The file is unzipped and its XML structure is read. It is never executed.</li>
+          <li>Formatting rules run against the XML to produce a compliance report.</li>
+          <li>An annotated copy is generated with Word-native comments at each issue location.</li>
+          <li>Results are returned to your browser.</li>
+          <li>Both files are scheduled for automatic deletion within 24 hours.</li>
+        </ol>
+        <p>That is the complete lifecycle. Your resume does not go anywhere else.</p>
+
+        <h2>What We Do Not Do</h2>
+        <ul>
+          <li>We do not read resume content for evaluation purposes.</li>
+          <li>We do not store resumes beyond the 24-hour deletion window.</li>
+          <li>We do not share files with third parties.</li>
+          <li>We do not use uploaded files for AI training.</li>
+          <li>We do not link file content to any identity.</li>
+        </ul>
+
+        <h2>File Security Measures</h2>
+        <p><strong>Randomized storage</strong> — files are stored under UUID-based identifiers, not your original filename.</p>
+        <p><strong>No execution</strong> — DOCX files are parsed as ZIP/XML archives. We never open them in Word or any application that could execute embedded content.</p>
+        <p><strong>Macro rejection</strong> — macro-enabled files (.docm) are rejected at upload before any processing occurs.</p>
+        <p><strong>Size limits</strong> — uploads are capped at 1MB.</p>
+        <p><strong>Rate limiting</strong> — upload frequency is limited per IP to prevent abuse.</p>
+        <p><strong>HTTPS only</strong> — all connections require TLS encryption.</p>
+        <p><strong>Automatic deletion</strong> — files are deleted within 24 hours regardless of whether you download them.</p>
+
+        <h2>Microsoft Office Viewer</h2>
+        <p>If the Office Viewer preview is enabled, your annotated DOCX is temporarily accessible at a public URL so Microsoft's viewer service can render it. This URL is tied to the temporary file and becomes inaccessible when the file is deleted. Microsoft's handling of files accessed through their viewer is governed by Microsoft's own privacy policy.</p>
+
+        <h2>Responsible Disclosure</h2>
+        <p>If you discover a security issue with Corsair Standard, please contact us at <a href="mailto:resumeformatter6@gmail.com">resumeformatter6@gmail.com</a>. We appreciate responsible disclosure and will respond promptly.</p>
+      </article>
+    </main>
+  </body>
+</html>
