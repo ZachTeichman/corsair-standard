@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -61,9 +62,25 @@ def _load_drive_modules() -> tuple[Any, Any, Any, Any, Any]:
 
 def _credentials() -> Any:
     Credentials, ServiceAccountCredentials, InstalledAppFlow, _, _ = _load_drive_modules()
+    service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if service_account_json:
+        try:
+            service_account_info = json.loads(service_account_json)
+        except json.JSONDecodeError as exc:
+            raise DriveStorageUnavailable("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON.") from exc
+        return ServiceAccountCredentials.from_service_account_info(service_account_info, scopes=DRIVE_SCOPES)
+
     service_account_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if service_account_file:
         return ServiceAccountCredentials.from_service_account_file(service_account_file, scopes=DRIVE_SCOPES)
+
+    token_json = os.getenv("GOOGLE_DRIVE_TOKEN_JSON")
+    if token_json:
+        try:
+            token_info = json.loads(token_json)
+        except json.JSONDecodeError as exc:
+            raise DriveStorageUnavailable("GOOGLE_DRIVE_TOKEN_JSON is not valid JSON.") from exc
+        return Credentials.from_authorized_user_info(token_info, DRIVE_SCOPES)
 
     token_path = Path(os.getenv("GOOGLE_DRIVE_TOKEN_FILE", "var/google-drive-token.json"))
     client_secret_path = os.getenv("GOOGLE_DRIVE_CLIENT_SECRET_FILE")
@@ -77,7 +94,8 @@ def _credentials() -> Any:
         return creds
 
     raise DriveStorageUnavailable(
-        "Set GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_APPLICATION_CREDENTIALS, or GOOGLE_DRIVE_CLIENT_SECRET_FILE to enable Google Drive storage."
+        "Set GOOGLE_DRIVE_TOKEN_JSON, GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SERVICE_ACCOUNT_FILE, "
+        "GOOGLE_APPLICATION_CREDENTIALS, or GOOGLE_DRIVE_CLIENT_SECRET_FILE to enable Google Drive storage."
     )
 
 

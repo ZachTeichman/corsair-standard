@@ -32,6 +32,8 @@ through the hosting platform secret/config system.
 | `GOOGLE_DRIVE_FOLDER_ID` | Optional | Enables Google Drive upload storage when set. |
 | `GOOGLE_DRIVE_RETENTION_HOURS` | Optional | Retention window for Drive files. Defaults to `24`; values below 1 are treated as 1 hour. |
 | `GOOGLE_DRIVE_UPLOAD_MODE` | Optional | `background`, `sync`, or `disabled`. Defaults to `background` so audit responses do not wait on Drive upload. Use `sync` only if the response must include Drive preview links immediately. |
+| `GOOGLE_DRIVE_TOKEN_JSON` | Optional | OAuth authorized-user token JSON for cloud hosts like Railway where local token files are unavailable. Store as a secret. |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Optional | Service account JSON for cloud hosts. Store as a secret. Use only when Drive folder/storage permissions are configured for the service account. |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | Optional | Path to a Google service account JSON file. Alternative to OAuth credentials. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Optional | Standard Google credentials path. Alternative to `GOOGLE_SERVICE_ACCOUNT_FILE`. |
 | `GOOGLE_DRIVE_CLIENT_SECRET_FILE` | Optional | Path to an OAuth client secret JSON file. Used with `GOOGLE_DRIVE_TOKEN_FILE`. |
