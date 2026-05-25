@@ -1,7 +1,7 @@
 import { Download, ExternalLink, Eye } from "lucide-react";
 import { apiHref } from "../lib/api";
 import type { AnalyzePayload } from "../types/api";
-import { LinkButton } from "./ui/Button";
+import { Button, LinkButton } from "./ui/Button";
 import { Card } from "./ui/Card";
 
 interface OfficePreviewProps {
@@ -15,7 +15,7 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
   const driveAnnotatedId = drive?.annotated?.id;
   const drivePreview = driveAnnotatedId ? `https://drive.google.com/file/d/${driveAnnotatedId}/preview` : null;
   const embed = payload?.document_links?.office_viewer_embed ?? drivePreview;
-  const open = payload?.document_links?.office_viewer_open ?? driveAnnotated ?? annotated;
+  const microsoftPreview = payload?.document_links?.office_viewer_open;
   const filename = payload?.source.filename ?? "Annotated DOCX";
   const annotation = payload?.annotation_summary;
 
@@ -26,12 +26,27 @@ export function OfficePreview({ payload }: OfficePreviewProps) {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-corsair-bronze">Word preview</p>
           <h2 className="mt-1 truncate text-lg font-semibold text-white light:text-corsair-ink">{filename}</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {driveAnnotated ? (
+            <LinkButton href={driveAnnotated} target="_blank" rel="noreferrer" variant="primary" className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+              <ExternalLink className="h-4 w-4" /> Open in Google Drive
+            </LinkButton>
+          ) : (
+            <Button disabled className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+              <ExternalLink className="h-4 w-4" /> Open in Google Drive
+            </Button>
+          )}
+          {microsoftPreview ? (
+            <LinkButton href={microsoftPreview} target="_blank" rel="noreferrer" className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+              <Eye className="h-4 w-4" /> Preview in Microsoft Office
+            </LinkButton>
+          ) : (
+            <Button disabled className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
+              <Eye className="h-4 w-4" /> Preview in Microsoft Office
+            </Button>
+          )}
           <LinkButton href={apiHref(annotated)} className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
-            <Download className="h-4 w-4" /> DOCX
-          </LinkButton>
-          <LinkButton href={apiHref(open)} target="_blank" rel="noreferrer" variant="primary" className="min-h-9 rounded-lg px-3 py-1.5 text-xs">
-            <Eye className="h-4 w-4" /> Open <ExternalLink className="h-3.5 w-3.5" />
+            <Download className="h-4 w-4" /> Download annotated DOCX
           </LinkButton>
         </div>
       </div>
